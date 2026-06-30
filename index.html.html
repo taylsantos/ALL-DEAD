@@ -1,4 +1,135 @@
-border-top: 1px solid var(--border); }
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SURVIVOR SAGA: Temporada 1 - Episódio 1</title>
+
+<style>
+:root {
+    --bg: #07090b;
+    --panel: #111417;
+    --border: #232a2f;
+    --text: #cbd5e1;
+    --blood: #991b1b;
+    --gold: #d97706;
+    --military: #3f6212;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+    margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg); color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; overflow: hidden; user-select: none;
+}
+
+.game-container {
+    max-width: 460px; width: 95%; height: 95vh;
+    background: var(--panel); border: 2px solid var(--border);
+    border-radius: 24px; display: flex; flex-direction: column;
+    position: relative; box-shadow: 0 0 60px rgba(0,0,0,0.9);
+}
+
+/* --- TELA DE CRIAÇÃO --- */
+.setup-screen {
+    padding: 25px; display: flex; flex-direction: column; justify-content: center; height: 100%; overflow-y: auto;
+}
+.input-field {
+    background: #090b0c; border: 1px solid var(--border); padding: 14px;
+    color: #fff; font-family: inherit; border-radius: 12px; font-size: 15px;
+    text-align: center; margin-bottom: 20px; outline: none; transition: 0.2s;
+}
+.input-field:focus { border-color: var(--gold); }
+.class-card {
+    background: #171c20; border: 1px solid #2d363c; padding: 14px;
+    border-radius: 14px; margin-bottom: 10px; cursor: pointer; text-align: left; transition: 0.2s;
+}
+.class-card:hover { border-color: var(--gold); background: #1e242a; transform: translateY(-2px); }
+.class-card h4 { margin: 0 0 4px 0; color: var(--gold); font-size: 14px; }
+.class-card p { margin: 0; font-size: 12px; color: #94a3b8; line-height: 1.4; }
+
+/* --- HUD DO JOGO --- */
+.hud {
+    padding: 12px 16px; background: rgba(0,0,0,0.5);
+    border-bottom: 2px solid var(--border); display: grid;
+    grid-template-columns: 1fr 1fr; gap: 12px; display: none; z-index: 10;
+}
+.stat-item { font-size: 11px; font-weight: bold; color: #94a3b8; letter-spacing: 0.5px; }
+.bar-outer { background: #000; height: 8px; border-radius: 4px; margin-top: 4px; border: 1px solid #222; overflow: hidden; }
+.bar-inner { height: 100%; transition: width 0.4s ease; border-radius: 4px; }
+.hud-counters { font-size: 11px; font-weight: bold; color: #cbd5e1; grid-column: span 2; display: flex; justify-content: space-between; border-top: 1px solid #1e2428; padding-top: 6px; margin-top: 2px; }
+
+/* --- VISOR 3D --- */
+.viewport-3d-wrapper {
+    height: 200px; background: #020304; border-bottom: 2px solid var(--border);
+    position: relative; overflow: hidden; perspective: 600px; display: none;
+}
+.room-3d {
+    width: 100%; height: 100%; position: absolute; transform-style: preserve-3d;
+    transform: rotateX(12deg) rotateY(0deg); transition: transform 0.5s ease;
+}
+.room-floor {
+    position: absolute; width: 200%; height: 200%; background: radial-gradient(#1c2326 25%, transparent 80%);
+    background-size: 20px 20px; top: 40%; left: -50%; transform: rotateX(90deg); opacity: 0.5;
+}
+.room-wall {
+    position: absolute; width: 100%; height: 100%;
+    background: linear-gradient(to bottom, #050708, #151e22); opacity: 0.4;
+}
+.char-sprite {
+    font-size: 85px; position: absolute; bottom: 15px; left: calc(50% - 42px); z-index: 5;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transform: translateZ(0px) scale(0); opacity: 0;
+}
+.char-active { transform: translateZ(80px) scale(1); opacity: 1; }
+
+/* Animações */
+@keyframes monster-lunging {
+    0% { transform: translateZ(80px) scale(1); }
+    30% { transform: translateZ(180px) scale(1.5) translateY(-15px); text-shadow: 0 0 20px rgba(255,0,0,0.6); }
+    100% { transform: translateZ(80px) scale(1); }
+}
+.monster-attack-anim { animation: monster-lunging 0.4s ease-in-out 1; }
+
+@keyframes screen-shake-3d {
+    0%, 100% { transform: rotateX(12deg) rotateY(0deg) translateZ(0); }
+    25% { transform: rotateX(18deg) rotateY(-6deg) translateZ(-10px); }
+    75% { transform: rotateX(6deg) rotateY(6deg) translateZ(10px); }
+}
+.hurt-3d { animation: screen-shake-3d 0.3s ease-in-out; border: 2px solid var(--blood) !important; }
+
+.battle-hud {
+    position: absolute; top: 8px; width: 90%; display: none;
+    justify-content: space-between; z-index: 15; background: rgba(0,0,0,0.85);
+    padding: 6px 12px; border-radius: 8px; border: 1px solid var(--blood);
+    font-size: 11px; font-weight: bold; font-family: monospace; left: 5%;
+}
+
+/* --- INVENTÁRIO RETRÁTIL --- */
+.inventory-toggle {
+    background: #1e293b; color: #fff; padding: 6px; font-size: 11px; display: none;
+    font-weight: bold; cursor: pointer; text-align: center; border-bottom: 1px solid var(--border); z-index: 10;
+}
+.inventory-panel {
+    display: none; grid-template-columns: repeat(3, 1fr); gap: 6px;
+    padding: 10px; background: #0f1214; border-bottom: 1px solid var(--border);
+}
+.inv-slot {
+    background: #1e2529; border: 1px solid #333; padding: 8px; border-radius: 6px;
+    font-size: 10px; text-align: center; cursor: pointer; font-weight: bold;
+}
+.inv-slot:hover { background: #2a3338; border-color: var(--gold); }
+
+/* --- DIÁLOGOS & NARRATIVA --- */
+.game-content { display: none; flex-direction: column; flex-grow: 1; overflow: hidden; }
+.narrative-box { flex-grow: 1; padding: 15px 20px; overflow-y: auto; text-align: left; }
+.speaker { color: var(--blood); font-weight: 900; font-size: 12px; letter-spacing: 2px; margin-bottom: 6px; text-transform: uppercase; }
+.dialog-text { font-size: 13.5px; line-height: 1.6; color: #e2e8f0; }
+
+/* --- ACTION MENU --- */
+.action-menu { padding: 15px; display: flex; flex-direction: column; gap: 8px; background: rgba(0,0,0,0.3); border-top: 1px solid var(--border); }
 .btn-action {
     background: #1e293b; border: 1px solid #334155; color: #fff; padding: 12px;
     border-radius: 10px; cursor: pointer; font-size: 12.5px; text-align: left;
@@ -12,7 +143,6 @@ border-top: 1px solid var(--border); }
 
 <div class="game-container" id="main-ui">
 
-    <!-- TELA DE CRIAÇÃO DO PERSONAGEM -->
     <div id="screen-creation" class="setup-screen">
         <h2 style="color: var(--blood); margin: 0 0 4px 0; letter-spacing: 1px; font-size: 22px; font-family: monospace; font-weight: 900; text-align: center;">SURVIVOR SAGA</h2>
         <p style="color: #94a3b8; font-size: 11px; margin: 0 0 24px 0; text-align: center; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">Temporada 1: Isolamento - Episódio 1</p>
@@ -37,7 +167,6 @@ border-top: 1px solid var(--border); }
         </div>
     </div>
 
-    <!-- HUD PRINCIPAL -->
     <div class="hud" id="game-hud">
         <div class="stat-item">❤️ SAÚDE (<span id="txt-hp">100</span>) <div class="bar-outer"><div id="hp-bar" class="bar-inner" style="background: var(--blood); width: 100%;"></div></div></div>
         <div class="stat-item">🍞 SUPRIMENTOS (<span id="txt-sup">50</span>) <div class="bar-outer"><div id="sup-bar" class="bar-inner" style="background: var(--military); width: 50%;"></div></div></div>
@@ -47,7 +176,6 @@ border-top: 1px solid var(--border); }
         </div>
     </div>
 
-    <!-- VISOR GRÁFICO 3D -->
     <div class="viewport-3d-wrapper" id="game-viewport">
         <div class="battle-hud" id="battle-hud">
             <span style="color: #fca5a5;">🩸 VOCÊ: <span id="bt-player-hp">100</span> HP</span>
@@ -60,7 +188,6 @@ border-top: 1px solid var(--border); }
         </div>
     </div>
 
-    <!-- INVENTÁRIO RETRÁTIL -->
     <div class="inventory-toggle" id="game-inventory-toggle" onclick="toggleInventory()">🎒 VER MOCHILA DE RECURSOS</div>
     <div class="inventory-panel" id="inventory-panel">
         <div class="inv-slot" onclick="useItem('kit')">🩹 Kit Médico (<span id="slot-kit">0</span>)</div>
@@ -68,7 +195,6 @@ border-top: 1px solid var(--border); }
         <div class="inv-slot" onclick="useItem('snack')">🍫 Ração (<span id="slot-snack">0</span>)</div>
     </div>
 
-    <!-- NARRATIVA E DIÁLOGOS -->
     <div class="game-content" id="game-content">
         <div class="narrative-box">
             <div id="speaker" class="speaker">SISTEMA</div>
@@ -80,12 +206,10 @@ border-top: 1px solid var(--border); }
 </div>
 
 <script>
-// --- MOTOR DE DADOS E ESTADO DO RPG ---
 let player = { name: "Sobrevivente", origin: "", hp: 100, supplies: 40, ammo: 2, kits: 1, snacks: 2, str: 5, int: 5, karma: 0 };
 let combat = { active: false, enemyName: "", enemyHp: 0, enemySprite: "", nextScene: "" };
 
 const episode1Script = {
-    // --- INTRODUÇÕES ESPECÍFICAS DE CADA ORIGEM ---
     "ep1_start_policial": {
         speaker: "EPISÓDIO 1: O PRIMEIRO DIA", char: "🏙️",
         text: "As sirenes de Atlanta pararam de tocar faz meses, P_NAME. Sua farda de policial está gasta e manchada de um sangue que não é seu. Olhando para o coldre, você sabe que sua única vantagem em meio à loucura é o treinamento tático e a precisão do seu braço.",
@@ -106,8 +230,6 @@ const episode1Script = {
         text: "O rastreamento de entregas indicava o fim do mundo, P_NAME. Quando o caos estourou, você se trancou na área administrativa automatizada do Mega Centro de Distribuição do Mercado Livre. O galpão virou sua fortaleza tecnológica improvisada.",
         choices: [{ text: "➔ Investigar os arredores do abrigo temporário", target: "hub_logistica" }]
     },
-
-    // --- RAMIFICAÇÃO EX-POLICIAL ---
     "hub_policial": {
         speaker: "NARRADOR", char: "🏢",
         text: "Você está na sala de custódia do Distrito Policial nº 4. O rádio na sua cintura chia com uma gravação de emergência em loop repetindo que a cidade caiu. Das celas escuras nos fundos, uma voz rouca quebra o silêncio: 'Ei! Guarda... me tira daqui e eu te dou um caminhão.' É o prisioneiro Macedo.",
@@ -128,7 +250,7 @@ const episode1Script = {
     },
     "macedo_falha": {
         speaker: "MACEDO", char: "😠",
-        text: "Ele cospe no chão de cimento: 'Você não tem mais distintivo para me interrogar, parceiro. Ou você me solta e sobrevive, ou fica aí sozinho bancando o tira orgulhoso.' O estalo metálico de janelas quebrando ecoa no saguão principal!",
+        text: "He cospe no chão de cimento: 'Você não tem mais distintivo para me interrogar, parceiro. Ou você me solta e sobrevive, ou fica aí sozinho bancando o tira orgulhoso.' O estalo metálico de janelas quebrando ecoa no saguão principal!",
         choices: [{ text: "➔ Libertar o preso às pressas antes que os monstros entrem", target: "liberar_macedo" }]
     },
     "liberar_macedo": {
@@ -143,8 +265,6 @@ const episode1Script = {
         effects: { ammo: 4, karma: -10 },
         choices: [{ text: "➔ Caminhar cautelosamente pelas vielas escuras", target: "confluencia_ep1" }]
     },
-
-    // --- RAMIFICAÇÃO MÉDICO ---
     "hub_medico": {
         speaker: "CLARA", char: "🏥",
         text: "Trancado na capela do Hospital Geral, passos rápidos batem na porta. Uma garota de 14 anos chamada Clara entra desesperada: 'Por favor! Meu pai Artur está queimando em febre no banco do corredor. Ele jura que foi só um vergalhão de ferro, mas a pele dele tá cinza... Cura ele, por favor!'",
@@ -183,8 +303,6 @@ const episode1Script = {
         effects: { karma: -10 },
         choices: [{ text: "➔ Sair pelas portas de serviço rumo à noite fria", target: "confluencia_ep1" }]
     },
-
-    // --- RAMIFICAÇÃO ENGENHEIRO ---
     "hub_engenheiro": {
         speaker: "NARRADOR", char: "🪵",
         text: "Você está na oficina central de uma serralheria industrial. Suas armadilhas caseiras de fios de aço disparam na entrada com um estalo violento. Ao verificar com o pé de cabra, você encontra dois irmãos gêmeos — Leo e Maya — presos na rede metálica, tentando furtar suas baterias.",
@@ -230,8 +348,6 @@ const episode1Script = {
         text: "Os irmãos somem no meio da neblina da avenida. Pouco tempo depois, você ouve disparos distantes e gritos horríveis vindos da linha de trem... Eles não sobreviveram à noite.",
         choices: [{ text: "➔ Juntar suas ferramentas e avançar pelas sombras", target: "confluencia_ep1" }]
     },
-
-    // --- RAMIFICAÇÃO OPERADOR DE LOGÍSTICA ---
     "hub_logistica": {
         speaker: "JONAS (RÁDIO)", char: "📦",
         text: "Do centro de monitoramento do armazém, o interfone tático grita. Jonas, o motorista da van amarela, está encurralado no topo do veículo na Doca 7 externa por infectados famintos: 'Central! P_NAME! Socorro! Estou com um lote VIP de caixas táticas da Doca Norte... Abre o portão eletrônico!'",
@@ -243,14 +359,14 @@ const episode1Script = {
     },
     "check_logistica_tecnologia": {
         type: "skill_check", stat: "int", difficulty: 6,
-        success: "logistica_sucesso", fail: "logistica_falha"
+        success: "logistica_win", fail: "logistica_fail"
     },
-    "logistica_sucesso": {
+    "logistica_win": {
         speaker: "SISTEMA", char: "🤖",
         text: "Seus dedos voam pelo teclado industrial. Você liga os alarmes sonoros e as esteiras de triagem da Doca 1, no lado oposto. O barulho massivo atrai os infectados para longe do pátio. Você grita no rádio: 'Jonas! Corre para a porta lateral secundária agora!'",
         choices: [{ text: "➔ Puxar Jonas para dentro em total segurança", target: "jonas_salvo_limpo" }]
     },
-    "logistica_falha": {
+    "logistica_fail": {
         speaker: "SISTEMA", char: "⚠️",
         text: "O terminal acusa curto-circuito na rede principal. As esteiras travam e os alarmes começam a piscar vermelho bem em cima da Doca 7, deixando os monstros ainda mais furiosos e destrutivos contra a van de Jonas! O portão estala e racha!",
         choices: [{ text: "➔ Abrir as pressas a Doca antes que quebrem tudo", target: "abrir_doca" }]
@@ -283,8 +399,6 @@ const episode1Script = {
         effects: { karma: -15 },
         choices: [{ text: "➔ Caminhar pelos corredores silenciosos com seus suprimentos", target: "confluencia_ep1" }]
     },
-
-    // --- CLÍMAX COLETIVO E CONFLUÊNCIA DO EPISÓDIO 1 ---
     "confluencia_ep1": {
         speaker: "NARRADOR", char: "⛈️",
         text: "Algumas horas se passam. A noite cai sobre Atlanta acompanhada de uma tempestade torrencial violenta que inunda as ruas baixas. O cheiro de decomposição é sufocado pelo vapor. De repente, os alarmes perimetrais disparam... Uma horda massiva de mortos-vivos, fugindo das inundações, avança quebrando todas as cercas da região!",
@@ -302,20 +416,16 @@ const episode1Script = {
     }
 };
 
-// --- CORE ENGINE DO JOGO ---
-
 function selectOrigin(choice) {
     const nameInput = document.getElementById("player-name-input").value.trim();
     player.name = nameInput !== "" ? nameInput : "Sobrevivente";
     player.origin = choice;
 
-    // Configura e equilibra os Atributos Iniciais conforme a profissão
     if (choice === "policial") { player.ammo = 5; player.kits = 1; player.snacks = 1; player.str = 8; player.int = 4; }
     else if (choice === "medico") { player.ammo = 2; player.kits = 3; player.snacks = 1; player.str = 4; player.int = 8; }
     else if (choice === "engenheiro") { player.supplies = 65; player.ammo = 2; player.kits = 1; player.snacks = 1; player.str = 6; player.int = 6; }
     else if (choice === "logistica") { player.ammo = 3; player.kits = 1; player.snacks = 3; player.str = 5; player.int = 7; }
 
-    // Mudança de telas na Interface
     document.getElementById("screen-creation").style.display = "none";
     document.getElementById("game-hud").style.display = "grid";
     document.getElementById("game-viewport").style.display = "block";
@@ -331,13 +441,11 @@ function renderScene(id) {
     const scene = episode1Script[id];
     if (!scene) return;
 
-    // Processar Gatilho de Batalha Visual 3D
     if (scene.type === "battle_trigger") {
         startCombatEngine(scene);
         return;
     }
 
-    // Processar Teste de Atributo (Skill Check com "Dados")
     if (scene.type === "skill_check") {
         let diceRoll = Math.floor(Math.random() * 10) + 1;
         let finalScore = diceRoll + player[scene.stat];
@@ -348,7 +456,6 @@ function renderScene(id) {
         return;
     }
 
-    // Aplicar efeitos acumulativos de história nas variáveis globais
     if (scene.effects) {
         if (scene.effects.supplies) player.supplies = Math.min(100, Math.max(0, player.supplies + scene.effects.supplies));
         if (scene.effects.ammo) player.ammo += scene.effects.ammo;
@@ -358,7 +465,6 @@ function renderScene(id) {
         updateHUD();
     }
 
-    // Atualização do Visor Gráfico 3D (Efeito Parallax Z)
     const sprite = document.getElementById("char-sprite");
     sprite.classList.remove("char-active");
     setTimeout(() => {
@@ -366,12 +472,10 @@ function renderScene(id) {
         sprite.className = "char-sprite char-active";
     }, 50);
 
-    // Renderizar Texto com Injeção de Nome Customizado
     document.getElementById("speaker").innerHTML = scene.speaker;
     let processedText = scene.text.replace(/P_NAME/g, `<b>${player.name}</b>`);
-    typeWriter(processedText);
+    document.getElementById("dialog").innerHTML = processedText;
 
-    // Renderizar Botões de Ações e Ramificações
     const choiceDiv = document.getElementById("choices");
     choiceDiv.innerHTML = "";
     scene.choices.forEach(c => {
@@ -383,7 +487,6 @@ function renderScene(id) {
     });
 }
 
-// --- ENGINE DE COMBATE EM 3 DIMENSÕES ---
 function startCombatEngine(battleScene) {
     combat.active = true;
     combat.enemyName = battleScene.enemyName;
@@ -397,7 +500,7 @@ function startCombatEngine(battleScene) {
     sprite.className = "char-sprite char-active";
 
     document.getElementById("speaker").innerHTML = `⚔️ COMBATE EM ANDAMENTO`;
-    typeWriter(battleScene.textOnStart);
+    document.getElementById("dialog").innerHTML = battleScene.textOnStart;
 
     renderCombatControls();
     updateCombatHUD();
@@ -415,7 +518,7 @@ function renderCombatControls() {
 
     const btnMelee = document.createElement("button");
     btnMelee.className = "btn-action btn-battle";
-    btnMelee.innerHTML = `🪓 Ataque Físico / Coronhada (Usa FORÇA)`;
+    btnMelee.innerHTML = `🪓 Ataque Corpo a Corpo (Usa FORÇA)`;
     btnMelee.onclick = () => executeCombatRound("melee");
     choiceDiv.appendChild(btnMelee);
 }
@@ -428,14 +531,14 @@ function executeCombatRound(action) {
     if (action === "shoot") {
         if (player.ammo > 0) {
             player.ammo--;
-            damageToEnemy = Math.floor(Math.random() * 16) + 15; // 15-30 Dano
+            damageToEnemy = Math.floor(Math.random() * 16) + 15;
             logMessage = `Você mira com precisão e aperta o gatilho! O projétil causa ${damageToEnemy} de dano. `;
         } else {
             alert("A câmara está vazia! Você não tem munição pronta na mochila.");
             return;
         }
     } else if (action === "melee") {
-        damageToEnemy = Math.floor(Math.random() * 10) + player.str; // Baseado em força
+        damageToEnemy = Math.floor(Math.random() * 10) + player.str;
         logMessage = `Você avança desferindo um golpe físico violento, infligindo ${damageToEnemy} de dano. `;
     }
 
@@ -450,17 +553,16 @@ function executeCombatRound(action) {
         return;
     }
 
-    // Turno e Contra-ataque tridimensional do monstro
     setTimeout(() => {
         const sprite = document.getElementById("char-sprite");
-        sprite.classList.add("monster-attack-anim"); // Salto no eixo Z
+        sprite.classList.add("monster-attack-anim");
 
-        let damageToPlayer = Math.floor(Math.random() * 12) + 5; // 5-16 Dano recebido
+        let damageToPlayer = Math.floor(Math.random() * 12) + 5;
         player.hp = Math.max(0, player.hp - damageToPlayer);
         logMessage += `O ${combat.enemyName} salta furiosamente em cima de você e te rasga causando ${damageToPlayer} de dano!`;
         
         triggerHurtScreen();
-        typeWriter(logMessage);
+        document.getElementById("dialog").innerHTML = logMessage;
         updateHUD();
         updateCombatHUD();
 
@@ -473,7 +575,6 @@ function updateCombatHUD() {
     document.getElementById("bt-enemy-hp").innerHTML = combat.enemyHp;
 }
 
-// --- MICROGERENCIAMENTO DE INVENTÁRIO ---
 function toggleInventory() {
     const panel = document.getElementById("inventory-panel");
     panel.style.display = (panel.style.display === "grid") ? "none" : "grid";
@@ -484,25 +585,17 @@ function useItem(itemType) {
         if (player.kits <= 0) { alert("Você não possui Kits Médicos na mochila!"); return; }
         if (player.hp >= 100) { alert("Sua saúde já está completamente cheia!"); return; }
         player.kits--; player.hp = Math.min(100, player.hp + 35);
-        typeWriter("Você estanca o sangramento com gaze e aplica analgésicos táticos. (+35 Saúde)");
+        document.getElementById("dialog").innerHTML = "Você estanca o sangramento com gaze e aplica analgésicos táticos. (+35 Saúde)";
     } else if (itemType === "ammo") {
-        if (player.ammo >= 12) { alert("Seus pentes táticos já estão cheios!"); return; }
-        // Se a lógica permitir recarga por caixas, consome suprimentos ou itens específicos
         alert("A munição é gasta diretamente nos combates utilizando os botões de ação.");
         return;
     } else if (itemType === "snack") {
         if (player.snacks <= 0) { alert("Você não tem rações desidratadas!"); return; }
         player.snacks--; player.supplies = Math.min(100, player.supplies + 25);
-        typeWriter("Você consome rações secas do kit de sobrevivência. (+25 Suprimentos)");
+        document.getElementById("dialog").innerHTML = "Você consome rações secas do kit de sobrevivência. (+25 Suprimentos)";
     }
     updateHUD();
     if (combat.active) updateCombatHUD();
-}
-
-// --- FUNÇÕES DE INTERFACE E SUPORTE ---
-function typeWriter(text) {
-    const dialog = document.getElementById("dialog");
-    dialog.innerHTML = text; // Para respostas rápidas e compatibilidade de formatação de tags HTML b
 }
 
 function updateHUD() {
@@ -529,6 +622,8 @@ function triggerHurtScreen() {
     ui.classList.add("hurt-3d");
     setTimeout(() => ui.classList.remove("hurt-3d"), 300);
 }
+
+updateHUD();
 </script>
 </body>
 </html>
