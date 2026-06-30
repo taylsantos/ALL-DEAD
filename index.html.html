@@ -1,302 +1,534 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SURVIVOR RPG: Protocolo Zero</title>
-
-<style>
-:root {
-    --bg: #0d0f10;
-    --panel: #161a1d;
-    --border: #2a3136;
-    --text: #e2e8f0;
-    --blood: #b91c1c;
-    --gold: #eab308;
-    --military: #4d7c0f;
-}
-
-body {
-    margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: var(--bg); color: var(--text);
-    display: flex; align-items: center; justify-content: center;
-    min-height: 100vh; overflow: hidden;
-}
-
-.game-container {
-    max-width: 450px; width: 95%; height: 95vh;
-    background: var(--panel); border: 2px solid var(--border);
-    border-radius: 20px; display: flex; flex-direction: column;
-    position: relative; box-shadow: 0 0 50px rgba(0,0,0,0.9);
-}
-
-/* --- HUD SUPERIOR --- */
-.hud {
-    padding: 15px; background: rgba(0,0,0,0.3);
-    border-bottom: 2px solid var(--border); display: grid;
-    grid-template-columns: 1fr 1fr; gap: 10px;
-}
-.stat-item { font-size: 11px; font-weight: bold; }
-.bar-outer { background: #000; height: 8px; border-radius: 4px; margin-top: 4px; border: 1px solid #333; }
-.bar-inner { height: 100%; transition: width 0.5s ease; border-radius: 4px; }
-
-/* --- CENA VISUAL --- */
-.viewport {
-    height: 220px; position: relative; overflow: hidden;
-    display: flex; align-items: center; justify-content: center;
-    background: #000;
-}
-.viewport-overlay {
-    position: absolute; width: 100%; height: 100%;
-    background: linear-gradient(to bottom, transparent, var(--panel));
-}
-.char-sprite { font-size: 100px; z-index: 2; transition: all 0.5s; transform: scale(0.5); opacity: 0; }
-.char-active { transform: scale(1.1); opacity: 1; }
-
-/* --- CAIXA DE TEXTO --- */
-.narrative-box {
-    flex-grow: 1; padding: 20px; overflow-y: auto;
-    text-align: left; font-size: 14px; line-height: 1.6;
-}
-.speaker {
-    color: var(--blood); font-weight: 900; font-size: 12px;
-    letter-spacing: 2px; margin-bottom: 5px; text-transform: uppercase;
-}
-
-/* --- MENU DE AÇÕES --- */
-.action-menu {
-    padding: 15px; display: flex; flex-direction: column; gap: 10px;
-    background: rgba(0,0,0,0.2);
-}
+border-top: 1px solid var(--border); }
 .btn-action {
-    background: #1e293b; border: 1px solid #334155; color: #fff;
-    padding: 12px; border-radius: 10px; cursor: pointer;
-    font-size: 13px; text-align: left; transition: 0.2s;
+    background: #1e293b; border: 1px solid #334155; color: #fff; padding: 12px;
+    border-radius: 10px; cursor: pointer; font-size: 12.5px; text-align: left;
+    font-weight: bold; transition: 0.2s; line-height: 1.4;
 }
-.btn-action:hover { background: #334155; }
-.btn-check { color: var(--gold); border-color: var(--gold); } /* Botão de teste de habilidade */
-
-/* Animações */
-@keyframes shake { 0% { transform: translate(1px, 1px); } 20% { transform: translate(-3px, 0); } 40% { transform: translate(3px, 2px); } 100% { transform: translate(0,0); } }
-.hurt { animation: shake 0.3s ease; border: 2px solid var(--blood) !important; }
+.btn-action:hover { background: #334155; border-color: #475569; }
+.btn-battle { border-color: var(--blood); color: #fca5a5; }
 </style>
 </head>
 <body>
 
 <div class="game-container" id="main-ui">
-    <div class="hud">
-        <div class="stat-item">❤️ SAÚDE <div class="bar-outer"><div id="hp-bar" class="bar-inner" style="background: var(--blood); width: 100%;"></div></div></div>
-        <div class="stat-item">🏹 MUNIÇÃO <span id="ammo-count" style="color: var(--gold);">10</span></div>
-        <div class="stat-item">🍞 SUPRIMENTOS <div class="bar-outer"><div id="sup-bar" class="bar-inner" style="background: var(--military); width: 50%;"></div></div></div>
-        <div class="stat-item">🎭 KARMA: <span id="karma-text">NEUTRO</span></div>
+
+    <!-- TELA DE CRIAÇÃO DO PERSONAGEM -->
+    <div id="screen-creation" class="setup-screen">
+        <h2 style="color: var(--blood); margin: 0 0 4px 0; letter-spacing: 1px; font-size: 22px; font-family: monospace; font-weight: 900; text-align: center;">SURVIVOR SAGA</h2>
+        <p style="color: #94a3b8; font-size: 11px; margin: 0 0 24px 0; text-align: center; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">Temporada 1: Isolamento - Episódio 1</p>
+        
+        <input type="text" id="player-name-input" class="input-field" placeholder="Insira o nome do seu Sobrevivente" maxlength="12">
+        
+        <div class="class-card" onclick="selectOrigin('policial')">
+            <h4>👮 Ex-Policial</h4>
+            <p>Começa focado em combate tático. Vantagem: +3 Balas e bônus de Força em confrontos físicos.</p>
+        </div>
+        <div class="class-card" onclick="selectOrigin('medico')">
+            <h4>🩺 Socorrista / Médico</h4>
+            <p>Começa focado em suporte e reabilitação. Vantagem: +1 Kit Médico extra e bônus de Inteligência.</p>
+        </div>
+        <div class="class-card" onclick="selectOrigin('engenheiro')">
+            <h4>🛠️ Engenheiro Civil</h4>
+            <p>Começa focado em barricadas e fortificação. Vantagem: +25 de Suprimentos adicionais no bolso.</p>
+        </div>
+        <div class="class-card" onclick="selectOrigin('logistica')">
+            <h4>📦 Operador de Logística</h4>
+            <p>Trabalhava no CD do Mercado Livre. Vantagem: +1 Ração e bônus tecnológico para escaneamento.</p>
+        </div>
     </div>
 
-    <div class="viewport" id="stage">
-        <div class="viewport-overlay"></div>
-        <div id="char-sprite" class="char-sprite">🏚️</div>
+    <!-- HUD PRINCIPAL -->
+    <div class="hud" id="game-hud">
+        <div class="stat-item">❤️ SAÚDE (<span id="txt-hp">100</span>) <div class="bar-outer"><div id="hp-bar" class="bar-inner" style="background: var(--blood); width: 100%;"></div></div></div>
+        <div class="stat-item">🍞 SUPRIMENTOS (<span id="txt-sup">50</span>) <div class="bar-outer"><div id="sup-bar" class="bar-inner" style="background: var(--military); width: 50%;"></div></div></div>
+        <div class="hud-counters">
+            <span>🎒 INVENTÁRIO ATIVO</span>
+            <span>💥 FOR: <span id="stat-str">5</span> | 🧠 INT: <span id="stat-int">5</span></span>
+        </div>
     </div>
 
-    <div class="narrative-box">
-        <div id="speaker" class="speaker">SISTEMA</div>
-        <div id="dialog">Aguardando início do protocolo...</div>
+    <!-- VISOR GRÁFICO 3D -->
+    <div class="viewport-3d-wrapper" id="game-viewport">
+        <div class="battle-hud" id="battle-hud">
+            <span style="color: #fca5a5;">🩸 VOCÊ: <span id="bt-player-hp">100</span> HP</span>
+            <span style="color: #f87171;">☣️ ALVO: <span id="bt-enemy-hp">100</span> HP</span>
+        </div>
+        <div class="room-3d" id="room-engine">
+            <div class="room-wall"></div>
+            <div class="room-floor"></div>
+            <div id="char-sprite" class="char-sprite">🏚️</div>
+        </div>
     </div>
 
-    <div class="action-menu" id="choices">
-        <button class="btn-action" onclick="startRPG()">CARREGAR HISTÓRIA</button>
+    <!-- INVENTÁRIO RETRÁTIL -->
+    <div class="inventory-toggle" id="game-inventory-toggle" onclick="toggleInventory()">🎒 VER MOCHILA DE RECURSOS</div>
+    <div class="inventory-panel" id="inventory-panel">
+        <div class="inv-slot" onclick="useItem('kit')">🩹 Kit Médico (<span id="slot-kit">0</span>)</div>
+        <div class="inv-slot" onclick="useItem('ammo')">📦 Munição (<span id="slot-ammo">0</span>)</div>
+        <div class="inv-slot" onclick="useItem('snack')">🍫 Ração (<span id="slot-snack">0</span>)</div>
     </div>
+
+    <!-- NARRATIVA E DIÁLOGOS -->
+    <div class="game-content" id="game-content">
+        <div class="narrative-box">
+            <div id="speaker" class="speaker">SISTEMA</div>
+            <div id="dialog" class="dialog-text">...</div>
+        </div>
+        <div class="action-menu" id="choices"></div>
+    </div>
+
 </div>
 
 <script>
-// --- CONFIGURAÇÃO DO RPG ---
-let player = {
-    hp: 100,
-    ammo: 5,
-    supplies: 50,
-    karma: 0,
-    // Atributos (Inspirado em TLOU/RPG)
-    str: 5, // Força (Combate corpo a corpo)
-    agi: 7, // Agilidade (Furtividade/Fuga)
-    int: 6  // Inteligência (Diálogos/Reparos)
-};
+// --- MOTOR DE DADOS E ESTADO DO RPG ---
+let player = { name: "Sobrevivente", origin: "", hp: 100, supplies: 40, ammo: 2, kits: 1, snacks: 2, str: 5, int: 5, karma: 0 };
+let combat = { active: false, enemyName: "", enemyHp: 0, enemySprite: "", nextScene: "" };
 
-const storyData = {
-    "intro": {
-        speaker: "NARRADOR",
-        char: "🌫️",
-        text: "Cidade de Atlanta. Dia 184 pós-surto. O fungo se espalhou por tudo. Você está sem comida e o rádio só capta gritos. Dois caminhos surgem à frente.",
+const episode1Script = {
+    // --- INTRODUÇÕES ESPECÍFICAS DE CADA ORIGEM ---
+    "ep1_start_policial": {
+        speaker: "EPISÓDIO 1: O PRIMEIRO DIA", char: "🏙️",
+        text: "As sirenes de Atlanta pararam de tocar faz meses, P_NAME. Sua farda de policial está gasta e manchada de um sangue que não é seu. Olhando para o coldre, você sabe que sua única vantagem em meio à loucura é o treinamento tático e a precisão do seu braço.",
+        choices: [{ text: "➔ Investigar os arredores do abrigo temporário", target: "hub_policial" }]
+    },
+    "ep1_start_medico": {
+        speaker: "EPISÓDIO 1: O PRIMEIRO DIA", char: "🏥",
+        text: "O juramento médico perdeu o sentido quando os necrotérios levantaram, P_NAME. Mas seu conhecimento cirúrgico e os poucos frascos de antibióticos guardados na maleta foram o escudo que te manteve vivo enquanto hospitais inteiros viravam cinzas.",
+        choices: [{ text: "➔ Investigar os arredores do abrigo temporário", target: "hub_medico" }]
+    },
+    "ep1_start_engenheiro": {
+        speaker: "EPISÓDIO 1: O PRIMEIRO DIA", char: "⚙️",
+        text: "As estruturas que você ajudou a projetar agora servem de trincheiras contra hordas, P_NAME. Graças ao seu raciocínio lógico e preventivo, você conseguiu desviar e estocar pacotes de ração antes do colapso total dos mercados de Atlanta.",
+        choices: [{ text: "➔ Investigar os arredores do abrigo temporário", target: "hub_engenheiro" }]
+    },
+    "ep1_start_logistica": {
+        speaker: "EPISÓDIO 1: O PRIMEIRO DIA", char: "📦",
+        text: "O rastreamento de entregas indicava o fim do mundo, P_NAME. Quando o caos estourou, você se trancou na área administrativa automatizada do Mega Centro de Distribuição do Mercado Livre. O galpão virou sua fortaleza tecnológica improvisada.",
+        choices: [{ text: "➔ Investigar os arredores do abrigo temporário", target: "hub_logistica" }]
+    },
+
+    // --- RAMIFICAÇÃO EX-POLICIAL ---
+    "hub_policial": {
+        speaker: "NARRADOR", char: "🏢",
+        text: "Você está na sala de custódia do Distrito Policial nº 4. O rádio na sua cintura chia com uma gravação de emergência em loop repetindo que a cidade caiu. Das celas escuras nos fundos, uma voz rouca quebra o silêncio: 'Ei! Guarda... me tira daqui e eu te dou um caminhão.' É o prisioneiro Macedo.",
         choices: [
-            { text: "🚪 Explorar o Centro Médico (Risco: ALTO)", target: "hospital" },
-            { text: "🌲 Ir pelas florestas (Risco: MÉDIO)", target: "floresta" }
+            { text: "⚖️ [INTELIGÊNCIA] Interrogar Macedo para descobrir suas intenções", target: "check_macedo_policial" },
+            { text: "🔓 Libertar Macedo imediatamente em troca de ajuda mecânica", target: "liberar_macedo" },
+            { text: "🚪 Dar as costas, deixá-lo trancado e buscar armas nos armários", target: "ignorar_macedo" }
         ]
     },
-    "hospital": {
-        speaker: "SISTEMA",
-        char: "🏥",
-        text: "O hospital está coberto por crescimentos fúngicos. No corredor, você ouve um estalo rítmico... Um Estalador (Clicker) está bloqueando a farmácia. O que fazer?",
+    "check_macedo_policial": {
+        type: "skill_check", stat: "int", difficulty: 6,
+        success: "macedo_sucesso", fail: "macedo_falha"
+    },
+    "macedo_sucesso": {
+        speaker: "MACEDO", char: "🥷",
+        text: "Você aperta o feixe da lanterna nos olhos dele e exige a verdade. Ele recua, rendido: 'Ok, ok! Eu tentei furtar um caminhão militar no pátio antes de me pegarem. Sou mecânico. Se você abrir essa cela, eu faço aquele monstro blindado ligar. Nós passamos por cima de qualquer horda!'",
+        choices: [{ text: "➔ Abrir a cela e fechar a parceria", target: "liberar_macedo" }]
+    },
+    "macedo_falha": {
+        speaker: "MACEDO", char: "😠",
+        text: "Ele cospe no chão de cimento: 'Você não tem mais distintivo para me interrogar, parceiro. Ou você me solta e sobrevive, ou fica aí sozinho bancando o tira orgulhoso.' O estalo metálico de janelas quebrando ecoa no saguão principal!",
+        choices: [{ text: "➔ Libertar o preso às pressas antes que os monstros entrem", target: "liberar_macedo" }]
+    },
+    "liberar_macedo": {
+        speaker: "NARRADOR", char: "🛻",
+        text: "Girar a chave liberta Macedo. Ele estica os braços pesados e sorri de canto: 'Bela escolha. Vamos para o pátio de apreensão nos fundos. O caminhão tá lá.' Vocês ganham os fundos e encontram o veículo intacto, prontos para avançar!",
+        effects: { karma: 5 },
+        choices: [{ text: "➔ Subir no veículo e romper os portões rumo ao ponto de encontro", target: "confluencia_ep1" }]
+    },
+    "ignorar_macedo": {
+        speaker: "NARRADOR", char: "💀",
+        text: "Você ignora os gritos dele e arromba o armário de evidências, encontrando munição extra. Pelas câmeras, você vê Macedo ser encurralado. Você foge sozinho pelos fundos pulando o muro tático. Suas decisões te tornaram mais isolado.",
+        effects: { ammo: 4, karma: -10 },
+        choices: [{ text: "➔ Caminhar cautelosamente pelas vielas escuras", target: "confluencia_ep1" }]
+    },
+
+    // --- RAMIFICAÇÃO MÉDICO ---
+    "hub_medico": {
+        speaker: "CLARA", char: "🏥",
+        text: "Trancado na capela do Hospital Geral, passos rápidos batem na porta. Uma garota de 14 anos chamada Clara entra desesperada: 'Por favor! Meu pai Artur está queimando em febre no banco do corredor. Ele jura que foi só um vergalhão de ferro, mas a pele dele tá cinza... Cura ele, por favor!'",
         choices: [
-            { text: "🤫 [AGILIDADE] Tentar passar furtivamente", target: "check_clicker_stealth" },
-            { text: "🔫 [MUNIÇÃO] Dar um tiro preciso na cabeça", target: "clicker_shot" },
-            { text: "🏃 Voltar e ir pela floresta", target: "floresta" }
+            { text: "🩹 [KIT MÉDICO] Gastar seus preciosos antibióticos para tratar Artur", target: "salvar_artur" },
+            { text: "🧠 [INTELIGÊNCIA] Examinar detalhadamente os sintomas antes de agir", target: "check_artur_medico" },
+            { text: "🙅 Guardar os suprimentos médicos e mandar Clara se afastar", target: "negar_ajuda_medica" }
         ]
     },
-    "check_clicker_stealth": {
-        type: "check",
-        stat: "agi",
-        difficulty: 10,
-        success: "stealth_win",
-        fail: "stealth_fail"
+    "check_artur_medico": {
+        type: "skill_check", stat: "int", difficulty: 7,
+        success: "diagnostico_bom", fail: "diagnostico_ruim"
     },
-    "stealth_win": {
-        speaker: "NARRADOR",
-        char: "🧗",
-        text: "Sucesso! Seus movimentos foram como sombras. Você entra na farmácia e encontra antibióticos e comida!",
-        effects: { supplies: 30, hp: 10 },
-        choices: [{ text: "➔ Sair do hospital", target: "checkpoint_1" }]
+    "diagnostico_bom": {
+        speaker: "P_NAME", char: "🩺",
+        text: "Você examina as pupilas e o batimento cardíaco. Não há traços de esporos ou mordidas; é uma infecção bacteriana severa provocada por tétano. Seus medicamentos táticos são perfeitamente capazes de salvá-lo sem desperdício desnecessário.",
+        choices: [{ text: "➔ Injetar a medicação de compressão", target: "salvar_artur" }]
     },
-    "stealth_fail": {
-        speaker: "ESTALADOR",
-        char: "🧫",
-        text: "Você pisa em um caco de vidro. O som ecoa. O monstro solta um grito ensurdecedor e avança em uma velocidade sobre-humana, mordendo seu braço!",
-        effects: { hp: -40 },
-        choices: [{ text: "➔ FUGIR DESESPERADAMENTE", target: "checkpoint_1" }]
-    },
-    "clicker_shot": {
-        speaker: "NARRADOR",
-        char: "💥",
-        text: "O tiro explode a cabeça do infectado. O barulho, porém, atrai uma horda pequena das proximidades. Você precisa correr agora!",
-        effects: { ammo: -1, supplies: 10 },
-        choices: [{ text: "➔ CORRER PARA A SAÍDA", target: "checkpoint_1" }]
-    },
-    "floresta": {
-        speaker: "NARRADOR",
-        char: "🌲",
-        text: "A floresta é calma, até demais. Você encontra um grupo de sobreviventes armados. Eles parecem ser do grupo 'Caçadores' (TWD). Eles miram em você.",
+    "diagnostico_ruim": {
+        speaker: "NARRADOR", char: "⚠️",
+        text: "A tensão te faz hesitar. O suor de Artur pinga e ele começa a ter espasmos musculares na base do crânio. Clara grita em pânico achando que ele vai virar um monstro agora mesmo! Você precisa agir sob pressão.",
         choices: [
-            { text: "🤝 [INTELIGÊNCIA] Tentar negociar passagem", target: "check_negotiate" },
-            { text: "💀 Atacar primeiro para roubá-los", target: "attack_hunters" }
+            { text: "➔ Usar o Kit de emergência para conter a crise", target: "salvar_artur" },
+            { text: "➔ Recuar assustado e trancar os dois para fora da capela", target: "negar_ajuda_medica" }
         ]
     },
-    "check_negotiate": {
-        type: "check",
-        stat: "int",
-        difficulty: 8,
-        success: "negotiate_win",
-        fail: "negotiate_fail"
+    "salvar_artur": {
+        speaker: "ARTUR", char: "👴",
+        text: "Os antibióticos fazem efeito após longos minutos estabilizando os batimentos. Artur abre os olhos lentamente e aperta sua mão: 'Doutor... você salvou a única coisa que me restava. Minha vida é sua de agora em diante.' O grupo ganha um vigia leal.",
+        effects: { kits: -1, karma: 10 },
+        choices: [{ text: "➔ Ajudar Artur a caminhar e evacuar o hospital abandonado", target: "confluencia_ep1" }]
     },
-    "negotiate_win": {
-        speaker: "LÍDER CAÇADOR",
-        char: "🤠",
-        text: "Vocês trocam algumas palavras tensas. 'Você fala bem para um andarilho. Pegue isto e vá embora, não queremos problemas hoje.'",
-        effects: { supplies: 15, karma: 5 },
-        choices: [{ text: "➔ Seguir viagem", target: "checkpoint_1" }]
+    "negar_ajuda_medica": {
+        speaker: "CLARA", char: "😭",
+        text: "Clara chora abraçada ao corpo do pai, te olhando com puro ódio: 'Você deveria proteger as pessoas!'. Ela arrasta o pai pelos corredores na escuridão. Você preserva seus insumos, mas a culpa pesa nos seus ombros.",
+        effects: { karma: -10 },
+        choices: [{ text: "➔ Sair pelas portas de serviço rumo à noite fria", target: "confluencia_ep1" }]
     },
-    "negotiate_fail": {
-        speaker: "LÍDER CAÇADOR",
-        char: "😠",
-        text: "'Você fala demais e não diz nada.' Eles te batem com a coronha da arma e levam metade dos seus suprimentos.",
-        effects: { supplies: -25, hp: -10 },
-        choices: [{ text: "➔ Levantar e seguir", target: "checkpoint_1" }]
+
+    // --- RAMIFICAÇÃO ENGENHEIRO ---
+    "hub_engenheiro": {
+        speaker: "NARRADOR", char: "🪵",
+        text: "Você está na oficina central de uma serralheria industrial. Suas armadilhas caseiras de fios de aço disparam na entrada com um estalo violento. Ao verificar com o pé de cabra, você encontra dois irmãos gêmeos — Leo e Maya — presos na rede metálica, tentando furtar suas baterias.",
+        choices: [
+            { text: "🤝 Oferecer abrigo e liberdade se eles ajudarem na mão de obra", target: "recrutar_gemeos" },
+            { text: "💪 [FORÇA] Intimidar os invasores e confiscar suas mochilas por invasão", target: "check_engenheiro_forca" },
+            { text: "🚪 Cortar os fios e expulsá-los imediatamente na névoa tóxica", target: "expulsar_gemeos" }
+        ]
     },
-    "checkpoint_1": {
-        speaker: "SISTEMA",
-        char: "🏁",
-        text: "Fim do Primeiro Capítulo. Você sobreviveu, mas o mundo está ficando mais escuro. Suas estatísticas foram salvas.",
-        choices: [{ text: "🔄 Reiniciar Simulação", target: "intro" }]
+    "check_engenheiro_forca": {
+        type: "skill_check", stat: "str", difficulty: 6,
+        success: "intimidacao_sucesso", fail: "intimidacao_falha"
+    },
+    "intimidacao_sucesso": {
+        speaker: "MAYA", char: "🎒",
+        text: "Você bate o pé de cabra contra a mesa de ferro provocando faíscas. Maya recua assustada: 'Calma, moço! Leva tudo! Só não machuca a gente!'. Eles entregam as sacolas contendo peças mecânicas e rações industriais desidratadas.",
+        effects: { supplies: 30, snacks: 1, karma: -5 },
+        choices: [{ text: "➔ Pegar os espólios e mandar que sumam da sua propriedade", target: "expulsar_gemeos" }]
+    },
+    "intimidacao_falha": {
+        speaker: "LEO", char: "🪓",
+        text: "Leo consegue soltar o braço e puxa uma lâmina tática improvisada, cortando sua rede protetora: 'Você fala demais para quem tá sozinho, engenheiro! Nós vamos levar essas baterias por bem ou por mal!'. Eles avançam contra você!",
+        choices: [{ text: "⚔️ Entrar em combate físico defensivo", target: "batalha_engenheiro" }]
+    },
+    "batalha_engenheiro": {
+        type: "battle_trigger", enemyName: "Leo Invasor", enemyHp: 50, enemySprite: "🪓",
+        textOnStart: "Leo avança brandindo a lâmina de metal! Defenda seu território com o pé de cabra!",
+        nextScene: "vitoria_engenheiro"
+    },
+    "vitoria_engenheiro": {
+        speaker: "NARRADOR", char: "💀",
+        text: "Leo cai derrotado no chão da oficina. Maya chora puxando o irmão e batendo em retirada em direção aos trilhos do trem de Atlanta. Você protegeu suas máquinas.",
+        choices: [{ text: "➔ Trancar as portas e preparar para se mover à noite", target: "confluencia_ep1" }]
+    },
+    "recrutar_gemeos": {
+        speaker: "LEO E MAYA", char: "👫",
+        text: "Você os solta e propõe união. Leo limpa as calças: 'Acordo justo. Tem um grupo de caçadores limpando a linha de trem. Nós ajudamos a fortificar esse teto se você nos der proteção.' Seus muros ganham reforço técnico imediato.",
+        effects: { supplies: -10, karma: 8 },
+        choices: [{ text: "➔ Ligar os geradores e organizar o perímetro com os aliados", target: "confluencia_ep1" }]
+    },
+    "expulsar_gemeos": {
+        speaker: "NARRADOR", char: "🌫️",
+        text: "Os irmãos somem no meio da neblina da avenida. Pouco tempo depois, você ouve disparos distantes e gritos horríveis vindos da linha de trem... Eles não sobreviveram à noite.",
+        choices: [{ text: "➔ Juntar suas ferramentas e avançar pelas sombras", target: "confluencia_ep1" }]
+    },
+
+    // --- RAMIFICAÇÃO OPERADOR DE LOGÍSTICA ---
+    "hub_logistica": {
+        speaker: "JONAS (RÁDIO)", char: "📦",
+        text: "Do centro de monitoramento do armazém, o interfone tático grita. Jonas, o motorista da van amarela, está encurralado no topo do veículo na Doca 7 externa por infectados famintos: 'Central! P_NAME! Socorro! Estou com um lote VIP de caixas táticas da Doca Norte... Abre o portão eletrônico!'",
+        choices: [
+            { text: "🚨 Acionar o botão vermelho e abrir os portões da Doca 7", target: "abrir_doca" },
+            { text: "🧠 [INTELIGÊNCIA] Programar os robôs e esteiras táticas como distração", target: "check_logistica_tecnologia" },
+            { text: "🔇 Desligar o rádio intercomunicador e priorizar sua blindagem", target: "abandonar_jonas" }
+        ]
+    },
+    "check_logistica_tecnologia": {
+        type: "skill_check", stat: "int", difficulty: 6,
+        success: "logistica_sucesso", fail: "logistica_falha"
+    },
+    "logistica_sucesso": {
+        speaker: "SISTEMA", char: "🤖",
+        text: "Seus dedos voam pelo teclado industrial. Você liga os alarmes sonoros e as esteiras de triagem da Doca 1, no lado oposto. O barulho massivo atrai os infectados para longe do pátio. Você grita no rádio: 'Jonas! Corre para a porta lateral secundária agora!'",
+        choices: [{ text: "➔ Puxar Jonas para dentro em total segurança", target: "jonas_salvo_limpo" }]
+    },
+    "logistica_falha": {
+        speaker: "SISTEMA", char: "⚠️",
+        text: "O terminal acusa curto-circuito na rede principal. As esteiras travam e os alarmes começam a piscar vermelho bem em cima da Doca 7, deixando os monstros ainda mais furiosos e destrutivos contra a van de Jonas! O portão estala e racha!",
+        choices: [{ text: "➔ Abrir as pressas a Doca antes que quebrem tudo", target: "abrir_doca" }]
+    },
+    "jonas_salvo_limpo": {
+        speaker: "JONAS", char: "🚚",
+        text: "Jonas entra escorregando pelo corredor de triagem, carregando três pacotes selados intactos: 'Cara... você é um gênio da tecnologia! Olha o que eu salvei da triagem VIP!'. Você ganha rações e munições sem brechas na segurança.",
+        effects: { snacks: 2, ammo: 3, karma: 10 },
+        choices: [{ text: "➔ Armazenar a carga e planejar a saída do armazém", target: "confluencia_ep1" }]
+    },
+    "abrir_doca": {
+        speaker: "NARRADOR", char: "🧟",
+        text: "O motor industrial ruge e o portão de aço sobe. Jonas salta para dentro arrastando as caixas de entrega, mas a horda externa de infectados aproveita a abertura e invade o saguão principal do armazém com velocidade insana! Prepare-se!",
+        effects: { supplies: 40 },
+        choices: [{ text: "⚔️ Defender as esteiras e enfrentar a invasão fúngica!", target: "batalha_logistica" }]
+    },
+    "batalha_logistica": {
+        type: "battle_trigger", enemyName: "Infectado Veloz", enemyHp: 65, enemySprite: "🥴",
+        textOnStart: "Um espécime fúngico saltador avança derrubando as prateleiras de encomendas! Elimine-o!",
+        nextScene: "vitoria_logistica"
+    },
+    "vitoria_logistica": {
+        speaker: "P_NAME", char: "💀",
+        text: "Você rebate o monstro contra as chapas de metal até que ele pare de se mover. Jonas fecha o portão manualmente estancando a entrada de mais criaturas. O CD do Mercado Livre está seguro por ora.",
+        choices: [{ text: "➔ Recolher as ferramentas das caixas e respirar fundo", target: "confluencia_ep1" }]
+    },
+    "abandonar_jonas": {
+        speaker: "NARRADOR", char: "🤫",
+        text: "O rádio fica mudo. As telas mostram a van amarela virada no pátio. Você manteve o galpão perfeitamente lacrado e protegido contra invasões, mas sacrificou um parceiro de trabalho em troca do silêncio das esteiras.",
+        effects: { karma: -15 },
+        choices: [{ text: "➔ Caminhar pelos corredores silenciosos com seus suprimentos", target: "confluencia_ep1" }]
+    },
+
+    // --- CLÍMAX COLETIVO E CONFLUÊNCIA DO EPISÓDIO 1 ---
+    "confluencia_ep1": {
+        speaker: "NARRADOR", char: "⛈️",
+        text: "Algumas horas se passam. A noite cai sobre Atlanta acompanhada de uma tempestade torrencial violenta que inunda as ruas baixas. O cheiro de decomposição é sufocado pelo vapor. De repente, os alarmes perimetrais disparam... Uma horda massiva de mortos-vivos, fugindo das inundações, avança quebrando todas as cercas da região!",
+        choices: [{ text: "🏃‍♂️ Abandonar tudo e fugir em direção à antiga Estação Rodoviária!", target: "climax_ep1_run" }]
+    },
+    "climax_ep1_run": {
+        speaker: "SISTEMA", char: "🧟",
+        text: "A horda quebra as estruturas externas! No meio da enxurrada e da escuridão dos trilhos da rodoviária abandonada, você corre lado a lado com os sobreviventes restantes das outras rotas da cidade, todos buscando o mesmo galpão elevado para escapar da maré de dentes e fungos!",
+        choices: [{ text: "➔ Bater e trancar as portas do galpão de triagem elevado", target: "ep1_final_cliffhanger" }]
+    },
+    "ep1_final_cliffhanger": {
+        speaker: "CONTINUA NO EPISÓDIO 2", char: "🎬",
+        text: "As portas de metal batem e são trancadas com correntes. P_NAME limpa a água do rosto e olha ao redor: ali estão os sobreviventes das outras áreas de Atlanta, assustados, feridos, mas vivos. Vocês agora formam um único grupo de resistência. Suas decisões e recursos acumulados foram salvos na linha do tempo da temporada.",
+        choices: [{ text: "🔄 Reiniciar Linha do Tempo (Mudar Origem)", target: "restart" }]
     }
 };
 
-// --- MOTOR DO JOGO ---
+// --- CORE ENGINE DO JOGO ---
 
-function startRPG() {
-    renderScene("intro");
+function selectOrigin(choice) {
+    const nameInput = document.getElementById("player-name-input").value.trim();
+    player.name = nameInput !== "" ? nameInput : "Sobrevivente";
+    player.origin = choice;
+
+    // Configura e equilibra os Atributos Iniciais conforme a profissão
+    if (choice === "policial") { player.ammo = 5; player.kits = 1; player.snacks = 1; player.str = 8; player.int = 4; }
+    else if (choice === "medico") { player.ammo = 2; player.kits = 3; player.snacks = 1; player.str = 4; player.int = 8; }
+    else if (choice === "engenheiro") { player.supplies = 65; player.ammo = 2; player.kits = 1; player.snacks = 1; player.str = 6; player.int = 6; }
+    else if (choice === "logistica") { player.ammo = 3; player.kits = 1; player.snacks = 3; player.str = 5; player.int = 7; }
+
+    // Mudança de telas na Interface
+    document.getElementById("screen-creation").style.display = "none";
+    document.getElementById("game-hud").style.display = "grid";
+    document.getElementById("game-viewport").style.display = "block";
+    document.getElementById("game-inventory-toggle").style.display = "block";
+    document.getElementById("game-content").style.display = "flex";
+
+    updateHUD();
+    renderScene(`ep1_start_${choice}`);
 }
 
 function renderScene(id) {
-    const scene = storyData[id];
-    
-    // Processar Testes de Habilidade (Dice Roll)
-    if (scene.type === "check") {
-        let roll = Math.floor(Math.random() * 10) + player[scene.stat];
-        let passed = roll >= scene.difficulty;
+    if (id === "restart") { location.reload(); return; }
+    const scene = episode1Script[id];
+    if (!scene) return;
+
+    // Processar Gatilho de Batalha Visual 3D
+    if (scene.type === "battle_trigger") {
+        startCombatEngine(scene);
+        return;
+    }
+
+    // Processar Teste de Atributo (Skill Check com "Dados")
+    if (scene.type === "skill_check") {
+        let diceRoll = Math.floor(Math.random() * 10) + 1;
+        let finalScore = diceRoll + player[scene.stat];
+        let passed = finalScore >= scene.difficulty;
+        
+        alert(`🎲 TESTE DE ATRIBUTO: Rolagem [${diceRoll}] + Modificador [${player[scene.stat]}] = ${finalScore} (Dificuldade: ${scene.difficulty})`);
         renderScene(passed ? scene.success : scene.fail);
         return;
     }
 
-    // Aplicar efeitos
+    // Aplicar efeitos acumulativos de história nas variáveis globais
     if (scene.effects) {
-        if(scene.effects.hp) {
-            player.hp += scene.effects.hp;
-            if(scene.effects.hp < 0) triggerHurt();
-        }
-        if(scene.effects.supplies) player.supplies += scene.effects.supplies;
-        if(scene.effects.ammo) player.ammo += scene.effects.ammo;
-        if(scene.effects.karma) player.karma += scene.effects.karma;
+        if (scene.effects.supplies) player.supplies = Math.min(100, Math.max(0, player.supplies + scene.effects.supplies));
+        if (scene.effects.ammo) player.ammo += scene.effects.ammo;
+        if (scene.effects.kits) player.kits += scene.effects.kits;
+        if (scene.effects.snacks) player.snacks += scene.effects.snacks;
+        if (scene.effects.karma) player.karma += scene.effects.karma;
         updateHUD();
     }
 
-    // Visual
+    // Atualização do Visor Gráfico 3D (Efeito Parallax Z)
     const sprite = document.getElementById("char-sprite");
     sprite.classList.remove("char-active");
     setTimeout(() => {
         sprite.innerHTML = scene.char;
-        sprite.classList.add("char-active");
-    }, 100);
+        sprite.className = "char-sprite char-active";
+    }, 50);
 
-    // Texto com efeito typewriter
+    // Renderizar Texto com Injeção de Nome Customizado
     document.getElementById("speaker").innerHTML = scene.speaker;
-    typeWriter(scene.text);
+    let processedText = scene.text.replace(/P_NAME/g, `<b>${player.name}</b>`);
+    typeWriter(processedText);
 
-    // Botões
+    // Renderizar Botões de Ações e Ramificações
     const choiceDiv = document.getElementById("choices");
     choiceDiv.innerHTML = "";
     scene.choices.forEach(c => {
         const btn = document.createElement("button");
         btn.className = "btn-action";
-        if(c.text.includes("[")) btn.classList.add("btn-check");
         btn.innerHTML = c.text;
         btn.onclick = () => renderScene(c.target);
         choiceDiv.appendChild(btn);
     });
 }
 
-function typeWriter(text) {
-    let i = 0;
-    const dialog = document.getElementById("dialog");
-    dialog.innerHTML = "";
-    function type() {
-        if (i < text.length) {
-            dialog.innerHTML += text.charAt(i);
-            i++;
-            setTimeout(type, 20);
+// --- ENGINE DE COMBATE EM 3 DIMENSÕES ---
+function startCombatEngine(battleScene) {
+    combat.active = true;
+    combat.enemyName = battleScene.enemyName;
+    combat.enemyHp = battleScene.enemyHp;
+    combat.enemySprite = battleScene.enemySprite;
+    combat.nextScene = battleScene.nextScene;
+
+    document.getElementById("battle-hud").style.display = "flex";
+    const sprite = document.getElementById("char-sprite");
+    sprite.innerHTML = combat.enemySprite;
+    sprite.className = "char-sprite char-active";
+
+    document.getElementById("speaker").innerHTML = `⚔️ COMBATE EM ANDAMENTO`;
+    typeWriter(battleScene.textOnStart);
+
+    renderCombatControls();
+    updateCombatHUD();
+}
+
+function renderCombatControls() {
+    const choiceDiv = document.getElementById("choices");
+    choiceDiv.innerHTML = "";
+
+    const btnShoot = document.createElement("button");
+    btnShoot.className = "btn-action btn-battle";
+    btnShoot.innerHTML = `🔫 Atirar com Pistola (Gasta 1 Bala)`;
+    btnShoot.onclick = () => executeCombatRound("shoot");
+    choiceDiv.appendChild(btnShoot);
+
+    const btnMelee = document.createElement("button");
+    btnMelee.className = "btn-action btn-battle";
+    btnMelee.innerHTML = `🪓 Ataque Físico / Coronhada (Usa FORÇA)`;
+    btnMelee.onclick = () => executeCombatRound("melee");
+    choiceDiv.appendChild(btnMelee);
+}
+
+function executeCombatRound(action) {
+    if (!combat.active) return;
+    let damageToEnemy = 0;
+    let logMessage = "";
+
+    if (action === "shoot") {
+        if (player.ammo > 0) {
+            player.ammo--;
+            damageToEnemy = Math.floor(Math.random() * 16) + 15; // 15-30 Dano
+            logMessage = `Você mira com precisão e aperta o gatilho! O projétil causa ${damageToEnemy} de dano. `;
+        } else {
+            alert("A câmara está vazia! Você não tem munição pronta na mochila.");
+            return;
         }
+    } else if (action === "melee") {
+        damageToEnemy = Math.floor(Math.random() * 10) + player.str; // Baseado em força
+        logMessage = `Você avança desferindo um golpe físico violento, infligindo ${damageToEnemy} de dano. `;
     }
-    type();
+
+    combat.enemyHp = Math.max(0, combat.enemyHp - damageToEnemy);
+    updateCombatHUD();
+
+    if (combat.enemyHp <= 0) {
+        combat.active = false;
+        document.getElementById("battle-hud").style.display = "none";
+        alert(`💥 O ${combat.enemyName} foi completamente neutralizado!`);
+        renderScene(combat.nextScene);
+        return;
+    }
+
+    // Turno e Contra-ataque tridimensional do monstro
+    setTimeout(() => {
+        const sprite = document.getElementById("char-sprite");
+        sprite.classList.add("monster-attack-anim"); // Salto no eixo Z
+
+        let damageToPlayer = Math.floor(Math.random() * 12) + 5; // 5-16 Dano recebido
+        player.hp = Math.max(0, player.hp - damageToPlayer);
+        logMessage += `O ${combat.enemyName} salta furiosamente em cima de você e te rasga causando ${damageToPlayer} de dano!`;
+        
+        triggerHurtScreen();
+        typeWriter(logMessage);
+        updateHUD();
+        updateCombatHUD();
+
+        setTimeout(() => sprite.classList.remove("monster-attack-anim"), 400);
+    }, 450);
+}
+
+function updateCombatHUD() {
+    document.getElementById("bt-player-hp").innerHTML = player.hp;
+    document.getElementById("bt-enemy-hp").innerHTML = combat.enemyHp;
+}
+
+// --- MICROGERENCIAMENTO DE INVENTÁRIO ---
+function toggleInventory() {
+    const panel = document.getElementById("inventory-panel");
+    panel.style.display = (panel.style.display === "grid") ? "none" : "grid";
+}
+
+function useItem(itemType) {
+    if (itemType === "kit") {
+        if (player.kits <= 0) { alert("Você não possui Kits Médicos na mochila!"); return; }
+        if (player.hp >= 100) { alert("Sua saúde já está completamente cheia!"); return; }
+        player.kits--; player.hp = Math.min(100, player.hp + 35);
+        typeWriter("Você estanca o sangramento com gaze e aplica analgésicos táticos. (+35 Saúde)");
+    } else if (itemType === "ammo") {
+        if (player.ammo >= 12) { alert("Seus pentes táticos já estão cheios!"); return; }
+        // Se a lógica permitir recarga por caixas, consome suprimentos ou itens específicos
+        alert("A munição é gasta diretamente nos combates utilizando os botões de ação.");
+        return;
+    } else if (itemType === "snack") {
+        if (player.snacks <= 0) { alert("Você não tem rações desidratadas!"); return; }
+        player.snacks--; player.supplies = Math.min(100, player.supplies + 25);
+        typeWriter("Você consome rações secas do kit de sobrevivência. (+25 Suprimentos)");
+    }
+    updateHUD();
+    if (combat.active) updateCombatHUD();
+}
+
+// --- FUNÇÕES DE INTERFACE E SUPORTE ---
+function typeWriter(text) {
+    const dialog = document.getElementById("dialog");
+    dialog.innerHTML = text; // Para respostas rápidas e compatibilidade de formatação de tags HTML b
 }
 
 function updateHUD() {
-    player.hp = Math.min(100, Math.max(0, player.hp));
     document.getElementById("hp-bar").style.width = player.hp + "%";
     document.getElementById("sup-bar").style.width = player.supplies + "%";
-    document.getElementById("ammo-count").innerHTML = player.ammo;
-    
-    let k = "NEUTRO";
-    if(player.karma > 0) k = "HERÓI 🛡️";
-    if(player.karma < 0) k = "VILÃO 💀";
-    document.getElementById("karma-text").innerHTML = k;
+    document.getElementById("txt-hp").innerHTML = player.hp;
+    document.getElementById("txt-sup").innerHTML = player.supplies;
 
-    if(player.hp <= 0) {
-        alert("🚨 VOCÊ MORREU. O fungo tomou seu corpo.");
+    document.getElementById("stat-str").innerHTML = player.str;
+    document.getElementById("stat-int").innerHTML = player.int;
+
+    document.getElementById("slot-kit").innerHTML = player.kits;
+    document.getElementById("slot-ammo").innerHTML = player.ammo;
+    document.getElementById("slot-snack").innerHTML = player.snacks;
+
+    if (player.hp <= 0) {
+        alert("🚨 FIM DE JOGO: Seus batimentos pararam. Você não sobreviveu ao primeiro episódio.");
         location.reload();
     }
 }
 
-function triggerHurt() {
-    const ui = document.getElementById("main-ui");
-    ui.classList.add("hurt");
-    setTimeout(() => ui.classList.remove("hurt"), 300);
+function triggerHurtScreen() {
+    const ui = document.getElementById("room-engine");
+    ui.classList.add("hurt-3d");
+    setTimeout(() => ui.classList.remove("hurt-3d"), 300);
 }
-
-updateHUD();
 </script>
 </body>
 </html>
