@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SURVIVOR RPG: Protocolo Zero</title>
+
+<style>
+:root {
+    --bg: #0d0f10;
+    --panel: #161a1d;
+    --border: #2a3136;
+    --text: #e2e8f0;
+    --blood: #b91c1c;
+    --gold: #eab308;
+    --military: #4d7c0f;
+}
+
+body {
+    margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg); color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; overflow: hidden;
+}
+
+.game-container {
+    max-width: 450px; width: 95%; height: 95vh;
+    background: var(--panel); border: 2px solid var(--border);
+    border-radius: 20px; display: flex; flex-direction: column;
+    position: relative; box-shadow: 0 0 50px rgba(0,0,0,0.9);
+}
+
+/* --- HUD SUPERIOR --- */
+.hud {
+    padding: 15px; background: rgba(0,0,0,0.3);
+    border-bottom: 2px solid var(--border); display: grid;
+    grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.stat-item { font-size: 11px; font-weight: bold; }
+.bar-outer { background: #000; height: 8px; border-radius: 4px; margin-top: 4px; border: 1px solid #333; }
+.bar-inner { height: 100%; transition: width 0.5s ease; border-radius: 4px; }
+
+/* --- CENA VISUAL --- */
+.viewport {
+    height: 220px; position: relative; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    background: #000;
+}
+.viewport-overlay {
+    position: absolute; width: 100%; height: 100%;
+    background: linear-gradient(to bottom, transparent, var(--panel));
+}
+.char-sprite { font-size: 100px; z-index: 2; transition: all 0.5s; transform: scale(0.5); opacity: 0; }
+.char-active { transform: scale(1.1); opacity: 1; }
+
+/* --- CAIXA DE TEXTO --- */
+.narrative-box {
+    flex-grow: 1; padding: 20px; overflow-y: auto;
+    text-align: left; font-size: 14px; line-height: 1.6;
+}
+.speaker {
+    color: var(--blood); font-weight: 900; font-size: 12px;
+    letter-spacing: 2px; margin-bottom: 5px; text-transform: uppercase;
+}
+
+/* --- MENU DE AÇÕES --- */
+.action-menu {
+    padding: 15px; display: flex; flex-direction: column; gap: 10px;
+    background: rgba(0,0,0,0.2);
+}
+.btn-action {
+    background: #1e293b; border: 1px solid #334155; color: #fff;
+    padding: 12px; border-radius: 10px; cursor: pointer;
+    font-size: 13px; text-align: left; transition: 0.2s;
+}
+.btn-action:hover { background: #334155; }
+.btn-check { color: var(--gold); border-color: var(--gold); } /* Botão de teste de habilidade */
+
+/* Animações */
+@keyframes shake { 0% { transform: translate(1px, 1px); } 20% { transform: translate(-3px, 0); } 40% { transform: translate(3px, 2px); } 100% { transform: translate(0,0); } }
+.hurt { animation: shake 0.3s ease; border: 2px solid var(--blood) !important; }
+</style>
+</head>
+<body>
+
+<div class="game-container" id="main-ui">
+    <div class="hud">
+        <div class="stat-item">❤️ SAÚDE <div class="bar-outer"><div id="hp-bar" class="bar-inner" style="background: var(--blood); width: 100%;"></div></div></div>
+        <div class="stat-item">🏹 MUNIÇÃO <span id="ammo-count" style="color: var(--gold);">10</span></div>
+        <div class="stat-item">🍞 SUPRIMENTOS <div class="bar-outer"><div id="sup-bar" class="bar-inner" style="background: var(--military); width: 50%;"></div></div></div>
+        <div class="stat-item">🎭 KARMA: <span id="karma-text">NEUTRO</span></div>
+    </div>
+
+    <div class="viewport" id="stage">
+        <div class="viewport-overlay"></div>
+        <div id="char-sprite" class="char-sprite">🏚️</div>
+    </div>
+
+    <div class="narrative-box">
+        <div id="speaker" class="speaker">SISTEMA</div>
+        <div id="dialog">Aguardando início do protocolo...</div>
+    </div>
+
+    <div class="action-menu" id="choices">
+        <button class="btn-action" onclick="startRPG()">CARREGAR HISTÓRIA</button>
+    </div>
+</div>
+
+<script>
+// --- CONFIGURAÇÃO DO RPG ---
+let player = {
+    hp: 100,
+    ammo: 5,
+    supplies: 50,
+    karma: 0,
+    // Atributos (Inspirado em TLOU/RPG)
+    str: 5, // Força (Combate corpo a corpo)
+    agi: 7, // Agilidade (Furtividade/Fuga)
+    int: 6  // Inteligência (Diálogos/Reparos)
+};
+
+const storyData = {
+    "intro": {
+        speaker: "NARRADOR",
+        char: "🌫️",
+        text: "Cidade de Atlanta. Dia 184 pós-surto. O fungo se espalhou por tudo. Você está sem comida e o rádio só capta gritos. Dois caminhos surgem à frente.",
+        choices: [
+            { text: "🚪 Explorar o Centro Médico (Risco: ALTO)", target: "hospital" },
+            { text: "🌲 Ir pelas florestas (Risco: MÉDIO)", target: "floresta" }
+        ]
+    },
+    "hospital": {
+        speaker: "SISTEMA",
+        char: "🏥",
+        text: "O hospital está coberto por crescimentos fúngicos. No corredor, você ouve um estalo rítmico... Um Estalador (Clicker) está bloqueando a farmácia. O que fazer?",
+        choices: [
+            { text: "🤫 [AGILIDADE] Tentar passar furtivamente", target: "check_clicker_stealth" },
+            { text: "🔫 [MUNIÇÃO] Dar um tiro preciso na cabeça", target: "clicker_shot" },
+            { text: "🏃 Voltar e ir pela floresta", target: "floresta" }
+        ]
+    },
+    "check_clicker_stealth": {
+        type: "check",
+        stat: "agi",
+        difficulty: 10,
+        success: "stealth_win",
+        fail: "stealth_fail"
+    },
+    "stealth_win": {
+        speaker: "NARRADOR",
+        char: "🧗",
+        text: "Sucesso! Seus movimentos foram como sombras. Você entra na farmácia e encontra antibióticos e comida!",
+        effects: { supplies: 30, hp: 10 },
+        choices: [{ text: "➔ Sair do hospital", target: "checkpoint_1" }]
+    },
+    "stealth_fail": {
+        speaker: "ESTALADOR",
+        char: "🧫",
+        text: "Você pisa em um caco de vidro. O som ecoa. O monstro solta um grito ensurdecedor e avança em uma velocidade sobre-humana, mordendo seu braço!",
+        effects: { hp: -40 },
+        choices: [{ text: "➔ FUGIR DESESPERADAMENTE", target: "checkpoint_1" }]
+    },
+    "clicker_shot": {
+        speaker: "NARRADOR",
+        char: "💥",
+        text: "O tiro explode a cabeça do infectado. O barulho, porém, atrai uma horda pequena das proximidades. Você precisa correr agora!",
+        effects: { ammo: -1, supplies: 10 },
+        choices: [{ text: "➔ CORRER PARA A SAÍDA", target: "checkpoint_1" }]
+    },
+    "floresta": {
+        speaker: "NARRADOR",
+        char: "🌲",
+        text: "A floresta é calma, até demais. Você encontra um grupo de sobreviventes armados. Eles parecem ser do grupo 'Caçadores' (TWD). Eles miram em você.",
+        choices: [
+            { text: "🤝 [INTELIGÊNCIA] Tentar negociar passagem", target: "check_negotiate" },
+            { text: "💀 Atacar primeiro para roubá-los", target: "attack_hunters" }
+        ]
+    },
+    "check_negotiate": {
+        type: "check",
+        stat: "int",
+        difficulty: 8,
+        success: "negotiate_win",
+        fail: "negotiate_fail"
+    },
+    "negotiate_win": {
+        speaker: "LÍDER CAÇADOR",
+        char: "🤠",
+        text: "Vocês trocam algumas palavras tensas. 'Você fala bem para um andarilho. Pegue isto e vá embora, não queremos problemas hoje.'",
+        effects: { supplies: 15, karma: 5 },
+        choices: [{ text: "➔ Seguir viagem", target: "checkpoint_1" }]
+    },
+    "negotiate_fail": {
+        speaker: "LÍDER CAÇADOR",
+        char: "😠",
+        text: "'Você fala demais e não diz nada.' Eles te batem com a coronha da arma e levam metade dos seus suprimentos.",
+        effects: { supplies: -25, hp: -10 },
+        choices: [{ text: "➔ Levantar e seguir", target: "checkpoint_1" }]
+    },
+    "checkpoint_1": {
+        speaker: "SISTEMA",
+        char: "🏁",
+        text: "Fim do Primeiro Capítulo. Você sobreviveu, mas o mundo está ficando mais escuro. Suas estatísticas foram salvas.",
+        choices: [{ text: "🔄 Reiniciar Simulação", target: "intro" }]
+    }
+};
+
+// --- MOTOR DO JOGO ---
+
+function startRPG() {
+    renderScene("intro");
+}
+
+function renderScene(id) {
+    const scene = storyData[id];
+    
+    // Processar Testes de Habilidade (Dice Roll)
+    if (scene.type === "check") {
+        let roll = Math.floor(Math.random() * 10) + player[scene.stat];
+        let passed = roll >= scene.difficulty;
+        renderScene(passed ? scene.success : scene.fail);
+        return;
+    }
+
+    // Aplicar efeitos
+    if (scene.effects) {
+        if(scene.effects.hp) {
+            player.hp += scene.effects.hp;
+            if(scene.effects.hp < 0) triggerHurt();
+        }
+        if(scene.effects.supplies) player.supplies += scene.effects.supplies;
+        if(scene.effects.ammo) player.ammo += scene.effects.ammo;
+        if(scene.effects.karma) player.karma += scene.effects.karma;
+        updateHUD();
+    }
+
+    // Visual
+    const sprite = document.getElementById("char-sprite");
+    sprite.classList.remove("char-active");
+    setTimeout(() => {
+        sprite.innerHTML = scene.char;
+        sprite.classList.add("char-active");
+    }, 100);
+
+    // Texto com efeito typewriter
+    document.getElementById("speaker").innerHTML = scene.speaker;
+    typeWriter(scene.text);
+
+    // Botões
+    const choiceDiv = document.getElementById("choices");
+    choiceDiv.innerHTML = "";
+    scene.choices.forEach(c => {
+        const btn = document.createElement("button");
+        btn.className = "btn-action";
+        if(c.text.includes("[")) btn.classList.add("btn-check");
+        btn.innerHTML = c.text;
+        btn.onclick = () => renderScene(c.target);
+        choiceDiv.appendChild(btn);
+    });
+}
+
+function typeWriter(text) {
+    let i = 0;
+    const dialog = document.getElementById("dialog");
+    dialog.innerHTML = "";
+    function type() {
+        if (i < text.length) {
+            dialog.innerHTML += text.charAt(i);
+            i++;
+            setTimeout(type, 20);
+        }
+    }
+    type();
+}
+
+function updateHUD() {
+    player.hp = Math.min(100, Math.max(0, player.hp));
+    document.getElementById("hp-bar").style.width = player.hp + "%";
+    document.getElementById("sup-bar").style.width = player.supplies + "%";
+    document.getElementById("ammo-count").innerHTML = player.ammo;
+    
+    let k = "NEUTRO";
+    if(player.karma > 0) k = "HERÓI 🛡️";
+    if(player.karma < 0) k = "VILÃO 💀";
+    document.getElementById("karma-text").innerHTML = k;
+
+    if(player.hp <= 0) {
+        alert("🚨 VOCÊ MORREU. O fungo tomou seu corpo.");
+        location.reload();
+    }
+}
+
+function triggerHurt() {
+    const ui = document.getElementById("main-ui");
+    ui.classList.add("hurt");
+    setTimeout(() => ui.classList.remove("hurt"), 300);
+}
+
+updateHUD();
+</script>
+</body>
+</html>
