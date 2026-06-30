@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SURVIVOR RPG: Protocolo Zero v3.0</title>
+<title>SURVIVOR RPG: Protocolo Zero v4.0 3D</title>
 
 <style>
 :root {
-    --bg: #0b0d0e;
-    --panel: #15191c;
-    --border: #262d32;
+    --bg: #07090a;
+    --panel: #111416;
+    --border: #222a2e;
     --text: #cbd5e1;
     --blood: #991b1b;
     --gold: #d97706;
@@ -32,35 +32,67 @@ body {
 
 /* --- HUD SUPERIOR --- */
 .hud {
-    padding: 12px; background: rgba(0,0,0,0.4);
+    padding: 12px; background: rgba(0,0,0,0.5);
     border-bottom: 2px solid var(--border); display: grid;
-    grid-template-columns: 1fr 1fr; gap: 8px;
+    grid-template-columns: 1fr 1fr; gap: 8px; z-index: 10;
 }
 .stat-item { font-size: 11px; font-weight: bold; color: #94a3b8; }
 .bar-outer { background: #000; height: 8px; border-radius: 4px; margin-top: 3px; border: 1px solid #222; }
 .bar-inner { height: 100%; transition: width 0.4s ease; border-radius: 4px; }
 
-/* --- VISOR VISUAL (CINEMA & BATALHA) --- */
-.viewport {
-    height: 200px; position: relative; overflow: hidden;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    background: #050708; border-bottom: 1px solid var(--border);
+/* --- VISOR COM AMBIENTE E ANIMAÇÃO 3D --- */
+.viewport-3d-wrapper {
+    height: 220px; background: #020304; border-bottom: 2px solid var(--border);
+    position: relative; overflow: hidden;
+    /* Ativa o espaço 3D no navegador */
+    perspective: 600px; 
 }
-.char-sprite { font-size: 85px; transition: all 0.3s ease; transform: scale(0.7); opacity: 0; z-index: 2; }
-.char-active { transform: scale(1); opacity: 1; }
+.room-3d {
+    width: 100%; height: 100%; position: absolute;
+    transform-style: preserve-3d;
+    transform: rotateX(12deg) rotateY(0deg); /* Inclina o cenário dando sensação de sala */
+    transition: transform 0.5s ease;
+}
 
-/* HUD de Combate embutido no visor */
+/* Chão e fundo virtuais */
+.room-floor {
+    position: absolute; width: 200%; height: 200%; background: radial-gradient(#1c2326 20%, transparent 80%);
+    background-size: 20px 20px; background-color: #0c0f10;
+    top: 40%; left: -50%; transform: rotateX(90deg); transform-origin: top center; opacity: 0.6;
+}
+.room-wall {
+    position: absolute; width: 100%; height: 100%;
+    background: linear-gradient(to bottom, #050708, #182226); opacity: 0.5;
+}
+
+/* Sprite do Monstro/Item com profundidade Z */
+.char-sprite-3d {
+    font-size: 90px; position: absolute; bottom: 15px; z-index: 5;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transform: translateZ(0px) scale(0); opacity: 0;
+}
+.char-active { transform: translateZ(80px) scale(1); opacity: 1; } /* Salta para a frente no eixo Z */
+
+/* Animações de Ataque 3D do Monstro */
+@keyframes monster-lunging {
+    0% { transform: translateZ(80px) scale(1); }
+    30% { transform: translateZ(180px) scale(1.6) translateY(-20px); text-shadow: 0 0 20px rgba(255,0,0,0.6); } /* Pula na cara do jogador */
+    100% { transform: translateZ(80px) scale(1); }
+}
+.monster-attack-anim { animation: monster-lunging 0.4s ease-in-out 1; }
+
+/* HUD de Combate */
 .battle-hud {
     position: absolute; top: 8px; width: 90%; display: none;
-    justify-content: space-between; z-index: 5; background: rgba(0,0,0,0.7);
+    justify-content: space-between; z-index: 15; background: rgba(0,0,0,0.8);
     padding: 6px 10px; border-radius: 8px; border: 1px solid var(--blood);
-    font-size: 11px; font-weight: bold; font-family: monospace;
+    font-size: 11px; font-weight: bold; font-family: monospace; left: 5%;
 }
 
 /* --- INVENTÁRIO RETRÁTIL --- */
 .inventory-toggle {
     background: #1e293b; color: #fff; padding: 6px; font-size: 11px;
-    font-weight: bold; cursor: pointer; text-align: center; border-bottom: 1px solid var(--border);
+    font-weight: bold; cursor: pointer; text-align: center; border-bottom: 1px solid var(--border); z-index: 10;
 }
 .inventory-panel {
     display: none; grid-template-columns: repeat(3, 1fr); gap: 6px;
@@ -73,31 +105,23 @@ body {
 .inv-slot:hover { background: #2a3338; border-color: var(--gold); }
 
 /* --- CAIXA NARRATIVA --- */
-.narrative-box {
-    flex-grow: 1; padding: 15px; overflow-y: auto; text-align: left;
-}
-.speaker {
-    color: var(--blood); font-weight: 900; font-size: 12px;
-    letter-spacing: 2px; margin-bottom: 4px; text-transform: uppercase;
-}
+.narrative-box { flex-grow: 1; padding: 15px; overflow-y: auto; text-align: left; }
+.speaker { color: var(--blood); font-weight: 900; font-size: 12px; letter-spacing: 2px; margin-bottom: 4px; text-transform: uppercase; }
 .dialog-text { font-size: 13.5px; line-height: 1.5; color: #e2e8f0; }
 
 /* --- COMANDOS E AÇÕES --- */
-.action-menu {
-    padding: 12px; display: flex; flex-direction: column; gap: 8px;
-    background: rgba(0,0,0,0.3); border-top: 1px solid var(--border);
-}
-.btn-action {
-    background: #1e293b; border: 1px solid #334155; color: #fff;
-    padding: 12px; border-radius: 10px; cursor: pointer;
-    font-size: 12.5px; text-align: left; transition: 0.2s; font-weight: bold;
-}
+.action-menu { padding: 12px; display: flex; flex-direction: column; gap: 8px; background: rgba(0,0,0,0.3); border-top: 1px solid var(--border); }
+.btn-action { background: #1e293b; border: 1px solid #334155; color: #fff; padding: 12px; border-radius: 10px; cursor: pointer; font-size: 12.5px; text-align: left; transition: 0.2s; font-weight: bold; }
 .btn-action:hover { background: #334155; }
 .btn-battle { border-color: var(--blood); color: #fca5a5; }
 
-/* Animação de Dano */
-@keyframes shake { 0%, 100% { transform: translate(0, 0); } 20%, 60% { transform: translate(-4px, 2px); } 40%, 80% { transform: translate(4px, -2px); } }
-.hurt { animation: shake 0.3s ease-in-out; border: 2px solid var(--blood) !important; }
+/* Tremor de tela 3D ao levar dano */
+@keyframes screen-shake-3d {
+    0%, 100% { transform: rotateX(12deg) rotateY(0deg) translateZ(0); }
+    25% { transform: rotateX(18deg) rotateY(-5deg) translateZ(-10px); }
+    75% { transform: rotateX(6deg) rotateY(5deg) translateZ(10px); }
+}
+.hurt-3d { animation: screen-shake-3d 0.3s ease-in-out; border: 2px solid var(--blood) !important; }
 </style>
 </head>
 <body>
@@ -108,18 +132,22 @@ body {
         <div class="stat-item">🍞 SUPRIMENTOS <div class="bar-outer"><div id="sup-bar" class="bar-inner" style="background: var(--military); width: 50%;"></div></div></div>
     </div>
 
-    <div class="viewport" id="stage">
+    <div class="viewport-3d-wrapper">
         <div class="battle-hud" id="battle-hud">
             <span style="color: #fca5a5;">🩸 VOCÊ: <span id="bt-player-hp">100</span> HP</span>
             <span style="color: #f87171;">☣️ INIMIGO: <span id="bt-enemy-hp">100</span> HP</span>
         </div>
-        <div id="char-sprite" class="char-sprite">🏚️</div>
+        <div class="room-3d" id="room-engine">
+            <div class="room-wall"></div>
+            <div class="room-floor"></div>
+            <div id="char-sprite" class="char-sprite-3d">🏚️</div>
+        </div>
     </div>
 
     <div class="inventory-toggle" onclick="toggleInventory()">🎒 MOSTRAR/OCULTAR INVENTÁRIO</div>
     <div class="inventory-panel" id="inventory-panel">
         <div class="inv-slot" onclick="useItem('kit')">🩹 Kit Médico (<span id="slot-kit">1</span>)</div>
-        <div class="inv-slot" onclick="useItem('ammo')">📦 Munição (<span id="slot-ammo">3</span>)</div>
+        <div class="inv-slot" onclick="useItem('ammo')">📦 Munição (<span id="slot-ammo">4</span>)</div>
         <div class="inv-slot" onclick="useItem('snack')">🍫 Ração (<span id="slot-snack">2</span>)</div>
     </div>
 
@@ -134,15 +162,8 @@ body {
 </div>
 
 <script>
-// --- ESTADO INICIAL ---
-let player = {
-    hp: 100, supplies: 50,
-    inventory: { kit: 1, ammo: 4, snack: 2 },
-    str: 6, agi: 5
-};
-
-// Variáveis de Combate Atual
-let combat = { active: false, enemyName: "", enemyHp: 0, enemyMaxHp: 0, enemySprite: "", nextScene: "" };
+let player = { hp: 100, supplies: 50, inventory: { kit: 1, ammo: 4, snack: 2 }, str: 7 };
+let combat = { active: false, enemyName: "", enemyHp: 0, enemySprite: "", nextScene: "" };
 
 const storyData = {
     "intro": {
@@ -156,40 +177,38 @@ const storyData = {
     "fight_zombie": {
         type: "battle_trigger",
         enemyName: "Infectado Fúngico", enemyHp: 60, enemySprite: "🥴",
-        textOnStart: "Um estalador salta quebrando o vidro! Seus dentes estalam procurando sua carne. Defenda-se!",
+        textOnStart: "Um estalador quebra as janelas e entra na sala! Ele escuta seus batimentos cardíacos. Prepare-se!",
         nextScene: "victory_zombie"
     },
     "victory_zombie": {
         speaker: "NARRADOR", char: "💀",
-        text: "O monstro cai imóvel no chão do posto. Ao revistar os bolsos do casaco rasgado dele, você encontra suprimentos valiosos abandonados.",
+        text: "O monstro cai imóvel no chão. Ao revistar o corpo, você encontra medicamentos de emergência.",
         effects: { supplies: 20, getItems: { kit: 1, snack: 1 } },
         choices: [{ text: "➔ Avançar pela estrada vazia", target: "ending_demo" }]
     },
     "escape_vent": {
         speaker: "NARRADOR", char: "🕳️",
-        text: "Você se arrasta pelo metal frio. O duto desaba no meio do caminho, derrubando você direto no covil de um Saqueador armado da facção rival!",
-        choices: [{ text: "⚔️ Entrar em combate desesperado com o Saqueador", target: "fight_hunter" }]
+        text: "Você se arrasta pelo metal. O duto cede sob seu peso, derrubando você direto no esconderijo de um Saqueador hostil!",
+        choices: [{ text: "⚔️ Entrar em combate com o Saqueador", target: "fight_hunter" }]
     },
     "fight_hunter": {
         type: "battle_trigger",
-        enemyName: "Saqueador de Estrada", enemyHp: 90, enemySprite: "🥷",
-        textOnStart: "'Ora ora, olha o que caiu do teto! Passa tudo o que tem ou eu te encho de chumbo!'",
+        enemyName: "Saqueador de Estrada", enemyHp: 80, enemySprite: "🥷",
+        textOnStart: "'Mas o que...? Um intruso vindo do teto! Perfeito, mais suprimentos para o meu estoque!'",
         nextScene: "victory_hunter"
     },
     "victory_hunter": {
         speaker: "NARRADOR", char: "🏆",
-        text: "Você derrota o saqueador! Pegando a mochila dele, você encontra uma boa quantidade de projéteis extras.",
+        text: "Saqueador neutralizado. Você confisca a mochila tática dele contendo pentes de balas extras.",
         effects: { supplies: 10, getItems: { ammo: 3 } },
-        choices: [{ text: "➔ Seguir em frente rumo à zona segura", target: "ending_demo" }]
+        choices: [{ text: "➔ Seguir rumo à zona segura", target: "ending_demo" }]
     },
     "ending_demo": {
         speaker: "SISTEMA", char: "🏁",
-        text: "Capítulo concluído! Você dominou o gerenciamento de inventário e sobreviveu aos combates brutais do Protocolo Zero.",
+        text: "Capítulo concluído! Você dominou o motor RPG 3D, combate por turnos e gerenciamento tático de recursos.",
         choices: [{ text: "🔄 Reiniciar Linha do Tempo", target: "intro" }]
     }
 };
-
-// --- CORE DA HISTÓRIA & SISTEMAS ---
 
 function startRPG() { renderScene("intro"); }
 
@@ -197,122 +216,86 @@ function renderScene(id) {
     const scene = storyData[id];
     if (!scene) return;
 
-    // Gatilho do Modo de Combate Visual
-    if (scene.type === "battle_trigger") {
-        startCombatEngine(scene);
-        return;
-    }
+    if (scene.type === "battle_trigger") { startCombatEngine(scene); return; }
 
-    // Processamento de recompensas/efeitos de cenas normais
     if (scene.effects) {
         if (scene.effects.supplies) player.supplies = Math.min(100, player.supplies + scene.effects.supplies);
-        if (scene.effects.getItems) {
-            for (let item in scene.effects.getItems) {
-                player.inventory[item] += scene.effects.getItems[item];
-            }
-        }
+        if (scene.effects.getItems) { for (let item in scene.effects.getItems) { player.inventory[item] += scene.effects.getItems[item]; } }
         updateHUD();
     }
 
-    // Atualização Visual do Palco
     const sprite = document.getElementById("char-sprite");
-    sprite.classList.remove("char-active");
+    sprite.className = "char-sprite-3d";
     setTimeout(() => { sprite.innerHTML = scene.char; sprite.classList.add("char-active"); }, 50);
 
-    // Texto com máquina de escrever
     document.getElementById("speaker").innerHTML = scene.speaker;
     typeWriter(scene.text);
 
-    // Renderizar botões normais
-    const choiceDiv = document.getElementById("choices");
-    choiceDiv.innerHTML = "";
+    const choiceDiv = document.getElementById("choices"); choiceDiv.innerHTML = "";
     scene.choices.forEach(c => {
         const btn = document.createElement("button"); btn.className = "btn-action"; btn.innerHTML = c.text;
         btn.onclick = () => renderScene(c.target); choiceDiv.appendChild(btn);
     });
 }
 
-// --- ENGINE DE COMBATE VISUAL ---
 function startCombatEngine(battleScene) {
-    combat.active = true;
-    combat.enemyName = battleScene.enemyName;
-    combat.enemyHp = battleScene.enemyHp;
-    combat.enemyMaxHp = battleScene.enemyHp;
-    combat.enemySprite = battleScene.enemySprite;
-    combat.nextScene = battleScene.nextScene;
+    combat.active = true; combat.enemyName = battleScene.enemyName; combat.enemyHp = battleScene.enemyHp; combat.enemySprite = battleScene.enemySprite; combat.nextScene = battleScene.nextScene;
 
-    // Interface em modo combate
     document.getElementById("battle-hud").style.display = "flex";
     const sprite = document.getElementById("char-sprite");
-    sprite.innerHTML = combat.enemySprite; sprite.classList.add("char-active");
+    sprite.innerHTML = combat.enemySprite; sprite.className = "char-sprite-3d char-active";
 
     document.getElementById("speaker").innerHTML = `COMBATE: ${combat.enemyName.toUpperCase()}`;
     typeWriter(battleScene.textOnStart);
-
-    renderCombatOptions();
-    updateCombatHUD();
+    renderCombatOptions(); updateCombatHUD();
 }
 
 function renderCombatOptions() {
-    const choiceDiv = document.getElementById("choices");
-    choiceDiv.innerHTML = "";
+    const choiceDiv = document.getElementById("choices"); choiceDiv.innerHTML = "";
 
-    // Botão de Tiro (Requer Munição)
-    const btnShoot = document.createElement("button");
-    btnShoot.className = "btn-action btn-battle";
-    btnShoot.innerHTML = `🔫 Atirar com Pistola (Gasta 1 Munição)`;
-    btnShoot.onclick = () => executeCombatTurn("shoot");
-    choiceDiv.appendChild(btnShoot);
+    const btnShoot = document.createElement("button"); btnShoot.className = "btn-action btn-battle"; btnShoot.innerHTML = `🔫 Atirar com Pistola (Gasta 1 Munição)`;
+    btnShoot.onclick = () => executeCombatTurn("shoot"); choiceDiv.appendChild(btnShoot);
 
-    // Botão de Combate Corpo a Corpo
-    const btnMelee = document.createElement("button");
-    btnMelee.className = "btn-action btn-battle";
-    btnMelee.innerHTML = `🪓 Ataque Físico / Coronhada`;
-    btnMelee.onclick = () => executeCombatTurn("melee");
-    choiceDiv.appendChild(btnMelee);
+    const btnMelee = document.createElement("button"); btnMelee.className = "btn-action btn-battle"; btnMelee.innerHTML = `🪓 Ataque Corpo a Corpo`;
+    btnMelee.onclick = () => executeCombatTurn("melee"); choiceDiv.appendChild(btnMelee);
 }
 
 function executeCombatTurn(action) {
     if (!combat.active) return;
-    let playerDmg = 0;
-    let logText = "";
+    let playerDmg = 0; let logText = "";
 
     if (action === "shoot") {
         if (player.inventory.ammo > 0) {
-            player.inventory.ammo--;
-            playerDmg = Math.floor(Math.random() * 15) + 15; // 15-30 de dano
-            logText = `Você atira! O disparo perfura o alvo causando ${playerDmg} de dano. `;
-        } else {
-            alert("Sem balas! Você tenta puxar o gatilho, mas a arma clica vazia.");
-            return;
-        }
+            player.inventory.ammo--; playerDmg = Math.floor(Math.random() * 15) + 15;
+            logText = `Você puxa o gatilho! O tiro perfura o peito do alvo causando ${playerDmg} de dano. `;
+        } else { alert("Arma vazia! Troque para ataque físico ou abra seu inventário."); return; }
     } else if (action === "melee") {
-        playerDmg = Math.floor(Math.random() * 10) + player.str; // Baseado em força
-        logText = `Você golpeia de perto com força, causando ${playerDmg} de dano. `;
+        playerDmg = Math.floor(Math.random() * 10) + player.str;
+        logText = `Você desfere uma coronhada pesada, infringindo ${playerDmg} de dano. `;
     }
 
-    // Aplica dano no inimigo
-    combat.enemyHp = Math.max(0, combat.enemyHp - playerDmg);
-    updateCombatHUD();
+    combat.enemyHp = Math.max(0, combat.enemyHp - playerDmg); updateCombatHUD();
 
     if (combat.enemyHp <= 0) {
-        // Vitória do jogador
-        combat.active = false;
-        document.getElementById("battle-hud").style.display = "none";
-        alert(`💥 Vitória! Você eliminou o ${combat.enemyName}!`);
-        renderScene(combat.nextScene);
-        return;
+        combat.active = false; document.getElementById("battle-hud").style.display = "none";
+        alert(`💥 Alvo Destruído! Você venceu a batalha.`); renderScene(combat.nextScene); return;
     }
 
-    // Turno do Inimigo (Contra-ataque)
-    let enemyDmg = Math.floor(Math.random() * 12) + 5; // 5-17 de dano do zumbi/humano
-    player.hp = Math.max(0, player.hp - enemyDmg);
-    logText += `O ${combat.enemyName} contra-ataca furiosamente e te causa ${enemyDmg} de dano!`;
-    
-    triggerHurt();
-    typeWriter(logText);
-    updateHUD();
-    updateCombatHUD();
+    // Turno do Inimigo com Ativador da Animação 3D de Pulada na Tela
+    setTimeout(() => {
+        const sprite = document.getElementById("char-sprite");
+        sprite.classList.add("monster-attack-anim"); // Faz o monstro saltar fisicamente pra frente no eixo Z
+        
+        let enemyDmg = Math.floor(Math.random() * 12) + 6;
+        player.hp = Math.max(0, player.hp - enemyDmg);
+        logText += `O ${combat.enemyName} avança e pula em cima de você, rasgando suas defesas por ${enemyDmg} de dano!`;
+        
+        triggerHurt3D();
+        typeWriter(logText);
+        updateHUD(); updateCombatHUD();
+
+        setTimeout(() => sprite.classList.remove("monster-attack-anim"), 400);
+    }, 400);
 }
 
 function updateCombatHUD() {
@@ -320,35 +303,27 @@ function updateCombatHUD() {
     document.getElementById("bt-enemy-hp").innerHTML = combat.enemyHp;
 }
 
-// --- SISTEMA DE INVENTÁRIO ATIVO ---
 function toggleInventory() {
     const panel = document.getElementById("inventory-panel");
     panel.style.display = (panel.style.display === "grid") ? "none" : "grid";
 }
 
 function useItem(itemType) {
-    if (player.inventory[itemType] <= 0) {
-        alert("Você não possui esse item no estoque!");
-        return;
-    }
-
+    if (player.inventory[itemType] <= 0) { alert("Insumo esgotado!"); return; }
     if (itemType === "kit") {
-        if(player.hp >= 100) { alert("Sua saúde já está no máximo!"); return; }
+        if(player.hp >= 100) { alert("Saúde cheia!"); return; }
         player.inventory.kit--; player.hp = Math.min(100, player.hp + 35);
-        typeWriter("Você aplica ataduras e injeta analgésicos. (+35 de Saúde)");
+        typeWriter("Você faz curativos de compressão. (+35 Saúde)");
     } else if (itemType === "ammo") {
-        player.inventory.ammo--; player.inventory.ammo += 4; // Abre caixas de balas
-        typeWriter("Você abre um pacote de cartuchos e recarrega seus pentes. (+4 Balas)");
+        player.inventory.ammo--; player.inventory.ammo += 4;
+        typeWriter("Você desfaz uma caixa de cartuchos. (+4 Balas)");
     } else if (itemType === "snack") {
         player.inventory.snack--; player.supplies = Math.min(100, player.supplies + 25);
-        typeWriter("Você consome rações militares desidratadas. (+25 Suprimentos)");
+        typeWriter("Você consome rações secas. (+25 Suprimentos)");
     }
-
-    updateHUD();
-    if(combat.active) updateCombatHUD();
+    updateHUD(); if(combat.active) updateCombatHUD();
 }
 
-// --- FUNÇÕES DE AUXÍLIO ---
 function typeWriter(text) {
     let i = 0; const dialog = document.getElementById("dialog"); dialog.innerHTML = "";
     function type() { if (i < text.length) { dialog.innerHTML += text.charAt(i); i++; setTimeout(type, 15); } }
@@ -358,21 +333,17 @@ function typeWriter(text) {
 function updateHUD() {
     document.getElementById("hp-bar").style.width = player.hp + "%";
     document.getElementById("sup-bar").style.width = player.supplies + "%";
-    
-    // Atualiza contadores visuais do inventário
     document.getElementById("slot-kit").innerHTML = player.inventory.kit;
     document.getElementById("slot-ammo").innerHTML = player.inventory.ammo;
     document.getElementById("slot-snack").innerHTML = player.inventory.snack;
 
-    if (player.hp <= 0) {
-        alert("🚨 Você foi morto no apocalipse. Fim de jogo.");
-        location.reload();
-    }
+    if (player.hp <= 0) { alert("🚨 Crítico: Sinais vitais perdidos."); location.reload(); }
 }
 
-function triggerHurt() {
-    const ui = document.getElementById("main-ui"); ui.classList.add("hurt");
-    setTimeout(() => ui.classList.remove("hurt"), 300);
+function triggerHurt3D() {
+    const engine = document.getElementById("room-engine");
+    engine.classList.add("hurt-3d"); // Tremedeira simulando pancada na câmera em 3 dimensões
+    setTimeout(() => engine.classList.remove("hurt-3d"), 300);
 }
 
 updateHUD();
