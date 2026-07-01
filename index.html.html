@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Z-OUTBREAK: FPS 3D Apocalypse</title>
+<style>
+    body, html {
+        margin: 0; padding: 0; width: 100%; height: 100%;
+        overflow: hidden; background-color: #000;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    #canvas-container { width: 100%; height: 100%; display: block; }
+    
+    /* Crosshair (Mira) Central */
+    #crosshair {
+        position: absolute; top: 50%; left: 50%;
+        width: 10px; height: 10px;
+        transform: translate(-50%, -50%);
+        pointer-events: none; z-index: 10;
+    }
+    #crosshair::before, #crosshair::after {
+        content: ''; position: absolute; background: #ff3333;
+    }
+    #crosshair::before { top: 4px; left: -5px; width: 20px; height: 2px; }
+    #crosshair::after { top: -5px; left: 4px; width: 2px; height: 20px; }
+
+    /* HUD Superior */
+    #hud {
+        position: absolute; top: 20px; left: 20px;
+        background: rgba(0,0,0,0.75); padding: 15px;
+        border-radius: 12px; border: 1px solid #333;
+        color: #fff; font-weight: bold; font-size: 14px;
+        z-index: 5; pointer-events: none; min-width: 150px;
+    }
+    .hud-line { margin-bottom: 5px; }
+    #hp-text { color: #ff4444; }
+    #score-text { color: #ffcc00; }
+
+    /* Tela de Instruções / Bloqueio do Mouse */
+    #blocker {
+        position: absolute; width: 100%; height: 100%;
+        background-color: rgba(0,0,0,0.85); z-index: 20;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        color: white; text-align: center;
+    }
+    .start-btn {
+        background: #991b1b; color: white; border: none;
+        padding: 15px 30px; font-size: 18px; font-weight: bold;
+        border-radius: 8px; cursor: pointer; margin-top: 20px;
+        box-shadow: 0 0 15px rgba(255,0,0,0.4);
+    }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+<div id="blocker">
+    <h1 style="color: #991b1b; letter-spacing: 2px; margin: 0;">Z-OUTBREAK 3D</h1>
+    <p style="opacity: 0.7; max-width: 300px; font-size: 13px;">Use W, A, S, D para andar e o MOUSE para olhar e atirar. Clique no botão para travar a mira e jogar.</p>
+    <button class="start-btn" onclick="initGame()">☣️ ENTRAR NA ZONA</button>
+</div>
+
+<div id="hud">
+    <div class="hud-line">❤️ SAÚDE: <span id="hp-text">100</span></div>
+    <div class="hud-line">🧟 ABATES: <span id="score-text">0</span></div>
+</div>
+
+<div id="crosshair"></div>
+<div id="canvas-container"></div>
+
+<script>
+let scene, camera, renderer;
+let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+let velocity = new THREE.Vector3();
+let direction = new THREE.Vector3();
+let prevTime = performance.now();
+
+// Configurações do Jogador e Lógica
+let player = { hp: 100, score: 0 };
+let zombies = [];
+let yaw = 0, pitch = 0; // Controle de rotação da câmera
+const playerSpeed = 40.0;
+
+function initGame() {
+    // Esconde a tela de bloqueio e pede ao navegador para travar o ponteiro do mouse
+    document.getElementById('blocker').style.display = 'none';
+    const container = document.getElementById('canvas-container');
+    container.requestPointerLock = container.requestPointerLock || container.mozRequestPointerLock;
+    container.requestPointerLock();
+
+    if (scene) return; // Evita reinicializar caso já esteja rodando
+
+    // 1. Criar a Cena e Neblina de Atmosfera
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0c10);
+    scene.fog = new THREE.FogExp2(0x0a0c10, 0.035);
+
+    // 2. Câmera (Perspectiva de Primeira Pessoa)
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.y = 2; // Altura dos olhos do jogador
+
+    // 3. Renderizador WebGL
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    // 4. Iluminação (Lanterna do jogador + luz ambiente fraca)
+    let ambientLight = new THREE.AmbientLight(0x111111);
+    scene.add(ambientLight);
+
+    let flashlight = new THREE.SpotLight(0xffffff, 1.5, 40, Math.PI / 5, 0.5, 1);
+    flashlight.position.set(0, 0, 0);
+    camera.add(flashlight);
+    flashlight.target = new THREE.Object3D();
+    flashlight.target.position.set(0, 0, -1);
+    camera.add(flashlight.target);
+    scene.add(camera);
+
+    // 5. O Chão do Apocalipse
+    let floorGeo = new THREE.PlaneGeometry(200, 200);
+    let floorMat = new THREE.MeshStandardMaterial({ color: 0x11161a, roughness: 0.8 });
+    let floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    scene.add(floor);
+
+    // 6. Construir Obstáculos/Paredes no Labirinto
+    let wallGeo = new THREE.BoxGeometry(4, 8, 4);
+    let wallMat = new THREE.MeshStandardMaterial({ color: 0x1c2326 });
+    for(let i = 0; i < 40; i++) {
+        let wall = new THREE.Mesh(wallGeo, wallMat);
+        wall.position.x = (Math.random() - 0.5) * 120;
+        wall.position.z = (Math.random() - 0.5) * 120;
+        // Evita spawnar em cima do jogador
+        if(Math.abs(wall.position.x) > 8 || Math.abs(wall.position.z) > 8) {
+            scene.add(wall);
+        }
+    }
+
+    // 7. Inputs do Teclado e Mouse
+    setupControls();
+
+    // Spawn inicial de zumbis
+    for (let i = 0; i < 8; i++) spawnZombie();
+
+    // Iniciar Loop de Renderização
+    animate();
+}
+
+function spawnZombie() {
+    // Criação do corpo do zumbi (representação tática tridimensional)
+    let zombieGroup = new THREE.Group();
+    
+    let bodyGeo = new THREE.BoxGeometry(1.5, 3, 1.5);
+    let bodyMat = new THREE.MeshStandardMaterial({ color: 0x2e3b2e });
+    let body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.y = 1.5;
+    zombieGroup.add(body);
+
+    // Criação de canvas dinâmico para simular textura com emoji de zumbi
+    let canvas = document.createElement('canvas');
+    canvas.width = 128; canvas.height = 128;
+    let ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#2e3b2e'; ctx.fillRect(0,0,128,128);
+    ctx.font = '70px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🧟', 64, 64);
+    
+    let texture = new THREE.CanvasTexture(canvas);
+    let headGeo = new THREE.BoxGeometry(1.2, 1.2, 1.2);
+    let headMat = new THREE.MeshStandardMaterial({ map: texture });
+    let head = new THREE.Mesh(headGeo, headMat);
+    head.position.y = 3.2;
+    zombieGroup.add(head);
+
+    // Posicionamento aleatório fora do raio inicial do jogador
+    let angle = Math.random() * Math.PI * 2;
+    let distance = Math.random() * 30 + 20;
+    zombieGroup.position.x = camera.position.x + Math.cos(angle) * distance;
+    zombieGroup.position.z = camera.position.z + Math.sin(angle) * distance;
+
+    scene.add(zombieGroup);
+    zombies.push(zombieGroup);
+}
+
+function setupControls() {
+    // Movimentação por teclado
+    const onKeyDown = (e) => {
+        switch (e.code) {
+            case 'KeyW': moveForward = true; break;
+            case 'KeyA': moveLeft = true; break;
+            case 'KeyS': moveBackward = true; break;
+            case 'KeyD': moveRight = true; break;
+        }
+    };
+    const onKeyUp = (e) => {
+        switch (e.code) {
+            case 'KeyW': moveForward = false; break;
+            case 'KeyA': moveLeft = false; break;
+            case 'KeyS': moveBackward = false; break;
+            case 'KeyD': moveRight = false; break;
+        }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('keyup', onKeyUp);
+
+    // Rotação de Câmera pelo Mouse (FPS Camera Mouse Look)
+    document.addEventListener('mousemove', (e) => {
+        if (document.pointerLockElement === document.getElementById('canvas-container') || document.mozPointerLockElement === document.getElementById('canvas-container')) {
+            yaw -= e.movementX * 0.002;
+            pitch -= e.movementY * 0.002;
+            pitch = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, pitch)); // Previne rotação de cambalhota
+
+            camera.rotation.set(0, 0, 0); // Reseta
+            camera.rotation.y = yaw;
+            camera.rotation.x = pitch;
+        }
+    });
+
+    // Clique para Atirar
+    document.addEventListener('mousedown', () => {
+        if (document.pointerLockElement) {
+            shootWeapon();
+        }
+    });
+}
+
+function shootWeapon() {
+    // Criação de vetor de direção baseado para onde a câmera aponta
+    let raycaster = new THREE.Raycaster();
+    let centerMouse = new THREE.Vector2(0, 0); // Centro da tela
+    raycaster.setFromCamera(centerMouse, camera);
+
+    // Verifica colisões com os corpos dos zumbis
+    let targets = [];
+    zombies.forEach(z => {
+        z.children.forEach(child => {
+            child.userData.parentGroup = z; // Vincula para rastreamento
+            targets.push(child);
+        });
+    });
+
+    let intersects = raycaster.intersectObjects(targets);
+
+    if (intersects.length > 0) {
+        let hitZombie = intersects[0].object.userData.parentGroup;
+        // Efeito visual de eliminação
+        scene.remove(hitZombie);
+        zombies = zombies.filter(z => z !== hitZombie);
+        
+        player.score++;
+        document.getElementById('score-text').innerText = player.score;
+        
+        // Repovoa o mapa
+        setTimeout(spawnZombie, 1000);
+    }
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+
+    let time = performance.now();
+    let delta = (time - prevTime) / 1000;
+
+    if (document.pointerLockElement) {
+        // Atrito / Desaceleração
+        velocity.x -= velocity.x * 10.0 * delta;
+        velocity.z -= velocity.z * 10.0 * delta;
+
+        direction.z = Number(moveForward) - Number(moveBackward);
+        direction.x = Number(moveRight) - Number(moveLeft);
+        direction.normalize(); // Garante movimento vetorial uniforme
+
+        if (moveForward || moveBackward) velocity.z -= direction.z * playerSpeed * delta;
+        if (moveLeft || moveRight) velocity.x -= direction.x * playerSpeed * delta;
+
+        // Movimentação relativa à rotação da câmera (Olhar determina a direção do andar)
+        camera.translateX(-velocity.x * delta);
+        camera.translateZ(velocity.z * delta);
+        camera.position.y = 2; // Mantém a altura fixa do chão
+
+        // Inteligência Artificial dos Zumbis (Perseguição 3D)
+        zombies.forEach(zombie => {
+            // Faz o zumbi olhar na direção do jogador
+            zombie.lookAt(camera.position.x, zombie.position.y, camera.position.z);
+            
+            // Move na direção do jogador
+            let targetDir = new THREE.Vector3();
+            targetDir.subVectors(camera.position, zombie.position).normalize();
+            zombie.position.addScaledVector(targetDir, 3.5 * delta);
+
+            // Verifica proximidade de mordida/ataque
+            let dist = zombie.position.distanceTo(camera.position);
+            if(dist < 1.8) {
+                player.hp = Math.max(0, player.hp - (20 * delta)); // Dano contínuo
+                document.getElementById('hp-text').innerText = Math.round(player.hp);
+                
+                if(player.hp <= 0) {
+                    alert(`🚨 VOCÊ SUCUMBIU À HORDA! Abates totais: ${player.score}`);
+                    location.reload();
+                }
+            }
+        });
+    }
+
+    prevTime = time;
+    renderer.render(scene, camera);
+}
+
+// Redimensionamento de tela automático
+window.addEventListener('resize', () => {
+    if(camera && renderer) {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+});
+</script>
+</body>
+</html>
