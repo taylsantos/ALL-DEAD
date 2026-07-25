@@ -1,487 +1,200 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Z-OUTBREAK: Capítulo 2 - Caminhos Divididos</title>
-<style>
-    body, html {
-        margin: 0; padding: 0; width: 100%; height: 100%;
-        overflow: hidden; background-color: #040507;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-    #canvas-container { width: 100%; height: 100%; display: block; }
-    
-    /* Crosshair */
-    #crosshair {
-        position: absolute; top: 50%; left: 50%;
-        width: 14px; height: 14px; transform: translate(-50%, -50%);
-        pointer-events: none; z-index: 10;
-        border: 2px solid rgba(255, 51, 51, 0.4); border-radius: 50%;
-    }
-    #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #ff3333; }
-    #crosshair::before { top: 4px; left: -3px; width: 16px; height: 2px; }
-    #crosshair::after { top: -3px; left: 4px; width: 2px; height: 16px; }
-
-    /* HUD */
-    #hud {
-        position: absolute; bottom: 30px; left: 30px;
-        background: rgba(8, 10, 12, 0.9); padding: 15px 25px;
-        border-radius: 16px; border: 2px solid #334155;
-        color: #e2e8f0; font-weight: bold; font-family: monospace;
-        z-index: 5; pointer-events: none; min-width: 240px;
-        box-shadow: 0 0 25px rgba(0,0,0,0.9); display: none;
-    }
-    .hud-line { font-size: 13px; margin-bottom: 6px; letter-spacing: 1px; }
-    #hp-text { color: #ef4444; }
-    #ammo-text { color: #38bdf8; }
-    #obj-text { color: #f59e0b; font-size: 11px; margin-top: 5px; border-top: 1px solid #334155; padding-top: 5px; }
-
-    /* Tela de Seleção Inicial / Carregar Estado */
-    #blocker {
-        position: absolute; width: 100%; height: 100%;
-        background-color: #07090b; z-index: 20;
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        color: #cbd5e1; text-align: center; padding: 20px; box-sizing: border-box;
-    }
-    .input-field {
-        background: #111417; border: 1px solid #334155; padding: 12px;
-        color: #fff; font-family: inherit; border-radius: 10px; font-size: 14px;
-        text-align: center; margin-bottom: 20px; width: 260px; outline: none;
-    }
-    .class-grid { display: grid; grid-template-columns: 1fr; gap: 10px; max-width: 360px; width: 100%; }
-    .class-card {
-        background: #111417; border: 1px solid #1e293b; padding: 14px;
-        border-radius: 12px; cursor: pointer; text-align: left; transition: 0.2s;
-    }
-    .class-card:hover { border-color: #991b1b; background: #161b22; transform: translateY(-2px); }
-    .class-card h4 { margin: 0 0 4px 0; color: #f43f5e; font-size: 13px; letter-spacing: 1px; }
-    .class-card p { margin: 0; font-size: 11px; color: #94a3b8; line-height: 1.4; }
-
-    /* Caixa Dinâmica de Diálogo Cinematográfico */
-    #cinema-box {
-        position: absolute; top: 15%; left: 50%; transform: translateX(-50%);
-        width: 85%; max-width: 420px; background: rgba(7, 9, 11, 0.95);
-        border: 2px solid #991b1b; border-radius: 16px; padding: 20px;
-        color: #e2e8f0; font-family: inherit; z-index: 30; display: none;
-        box-shadow: 0 0 40px rgba(0,0,0,0.95);
-    }
-    .cinema-speaker { color: #ef4444; font-weight: 900; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
-    .cinema-text { font-size: 13px; line-height: 1.6; color: #cbd5e1; margin-bottom: 20px; }
-    .cinema-btn {
-        background: #1e293b; color: white; border: 1px solid #334155;
-        padding: 10px 14px; font-size: 12px; font-weight: bold; width: 100%;
-        border-radius: 8px; cursor: pointer; margin-bottom: 8px; text-align: left; transition: 0.2s;
-    }
-    .cinema-btn:hover { background: #991b1b; border-color: #ef4444; }
-</style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Assistente Financeiro - Chat</title>
+  <!-- Tailwind CSS para o visual -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js para os gráficos -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
+<body class="bg-gray-100 h-screen flex flex-col md:flex-row p-4 gap-4">
 
-<div id="blocker">
-    <h1 style="color: #ef4444; letter-spacing: 4px; margin: 0 0 2px 0; font-family: monospace; font-size: 26px;">Z-OUTBREAK: 3D</h1>
-    <p style="color: #94a3b8; font-size: 10px; font-weight: bold; letter-spacing: 2px; margin: 0 0 25px 0;">CAPÍTULO 2: CAMINHOS DIVIDIDOS</p>
-    
-    <input type="text" id="player-name-input" class="input-field" placeholder="Nome do seu Personagem" maxlength="12">
-    <p style="font-size: 11px; color: #64748b; margin: -10px 0 20px 0; max-width: 280px; line-height: 1.4;">Selecione a mesma classe que você utilizou no Capítulo 1 para carregar sua linha temporal dramática.</p>
-    
-    <div class="class-grid">
-        <div class="class-card" onclick="startChapter2('policial')">
-            <h4>👮 Rota do Ex-Policial</h4>
-            <p>Local: Ruas de Atlanta. Objetivo: Viatura 404 e o armazém de evidências táticas.</p>
-        </div>
-        <div class="class-card" onclick="startChapter2('medico')">
-            <h4>🩺 Rota do Médico</h4>
-            <p>Local: Túneis de Metrô. Objetivo: Cabine de filtragem e esporos tóxicos.</p>
-        </div>
-        <div class="class-card" onclick="startChapter2('engenheiro')">
-            <h4>🛠️ Rota do Engenheiro</h4>
-            <p>Local: Usina Subterrânea. Objetivo: Válvulas de contenção e caldeiras.</p>
-        </div>
-        <div class="class-card" onclick="startChapter2('logistica')">
-            <h4>📦 Rota de Logística</h4>
-            <p>Local: Centro de Distribuição. Objetivo: Terminais de carga e triagem VIP.</p>
-        </div>
+  <!-- PAINEL DA ESQUERDA: CHAT -->
+  <div class="flex-1 bg-white rounded-xl shadow-md flex flex-col h-full overflow-hidden">
+    <!-- Cabeçalho -->
+    <div class="p-4 bg-indigo-600 text-white font-bold flex justify-between items-center">
+      <span>💬 Chat Financeiro</span>
+      <input id="apiKeyInput" type="password" placeholder="Cole sua Gemini API Key aqui" 
+             class="text-black text-sm px-2 py-1 rounded w-60 border-none outline-none">
     </div>
-</div>
 
-<div id="cinema-box">
-    <div class="cinema-speaker" id="cin-speaker">NARRADOR</div>
-    <div class="cinema-text" id="cin-text">Texto do dilema moral estilo The Walking Dead...</div>
-    <div id="cin-choices"></div>
-</div>
+    <!-- Mensagens do Chat -->
+    <div id="chatBox" class="flex-1 p-4 overflow-y-auto space-y-3">
+      <div class="bg-gray-100 p-3 rounded-lg max-w-[80%] text-gray-800">
+        Olá! Eu sou seu assistente financeiro. Digite quanto você gastou ou recebeu (ex: <i>"Gastei R$ 35 no mercado hoje"</i>).
+      </div>
+    </div>
 
-<div id="hud">
-    <div class="hud-line">🩺 BIOMETRIA: <span id="hp-text">100%</span></div>
-    <div class="hud-line">🎒 ARSENAL: <span id="ammo-text">Carregando...</span></div>
-    <div id="obj-text">🎯 OBJETIVO: Investigar o perímetro tridimensional da área de queda.</div>
-</div>
+    <!-- Input de Texto -->
+    <div class="p-4 border-t flex gap-2">
+      <input id="userInput" type="text" placeholder="Digite seu gasto ou ganho..." 
+             class="flex-1 border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
+             onkeypress="if(event.key === 'Enter') processarMensagem()">
+      <button onclick="processarMensagem()" class="bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700 font-semibold">
+        Enviar
+      </button>
+    </div>
+  </div>
 
-<div id="crosshair"></div>
-<div id="canvas-container"></div>
-
-<script>
-let scene, camera, renderer;
-let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
-let velocity = new THREE.Vector3(), direction = new THREE.Vector3();
-let prevTime = performance.now();
-
-// Estado do Sobrevivente
-let player = { name: "Sobrevivente", origin: "", hp: 100, maxHp: 100, ammo: 0, score: 0, speedModifier: 1.0 };
-let zombies = [];
-let yaw = 0, pitch = 0;
-let playerSpeed = 46.0;
-
-// Elementos de Missão
-let targetObjectiveMesh, exitBeacon;
-let isObjectiveTriggered = false, isExitActive = false;
-let weaponGroup, isSwinging = false, swingTime = 0;
-
-function startChapter2(profession) {
-    const nameInput = document.getElementById("player-name-input").value.trim();
-    player.name = nameInput !== "" ? nameInput : "Sobrevivente";
-    player.origin = profession;
-
-    // Ajustes táticos iniciais de atributos baseados no histórico
-    if (profession === 'policial') { player.ammo = 6; }
-    if (profession === 'medico') { player.maxHp = 130; player.hp = 130; }
-
-    document.getElementById('blocker').style.display = 'none';
-    document.getElementById('hud').style.display = 'block';
-
-    const container = document.getElementById('canvas-container');
-    container.requestPointerLock = container.requestPointerLock || container.mozRequestPointerLock;
-    container.requestPointerLock();
-
-    initEngine3D();
-}
-
-function initEngine3D() {
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x030406);
-
-    // ADAPTAÇÃO VISUAL DO ROTEIRO: Cores de neblina dinâmicas por profissão
-    if (player.origin === 'policial') scene.fog = new THREE.FogExp2(0x1a1c1e, 0.045); // Cinza Asfalto
-    if (player.origin === 'medico') scene.fog = new THREE.FogExp2(0x061408, 0.05);   // Verde Esporo
-    if (player.origin === 'engenheiro') scene.fog = new THREE.FogExp2(0x1c160a, 0.045); // Amarelo Vapor
-    if (player.origin === 'logistica') scene.fog = new THREE.FogExp2(0x140404, 0.04);  // Vermelho Alarme
-
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.y = 2;
-
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.getElementById('canvas-container').appendChild(renderer.domElement);
-
-    let ambientLight = new THREE.AmbientLight(0x0d1116);
-    scene.add(ambientLight);
-
-    let flashlight = new THREE.SpotLight(0xfffebb, 2.3, 36, Math.PI / 4.6, 0.4, 1.1);
-    flashlight.position.set(0, 0, 0);
-    camera.add(flashlight);
-    flashlight.target = new THREE.Object3D(); flashlight.target.position.set(0, 0, -1);
-    camera.add(flashlight.target); scene.add(camera);
-
-    // Asfalto / Chão
-    let floorMat = new THREE.MeshStandardMaterial({ color: 0x0a0c0d, roughness: 0.95 });
-    let floor = new THREE.Mesh(new THREE.PlaneGeometry(300, 300), floorMat);
-    floor.rotation.x = -Math.PI / 2; scene.add(floor);
-
-    // Geração de Obstáculos Estruturais
-    let blockGeo = new THREE.BoxGeometry(6, 8, 6);
-    let blockMat = new THREE.MeshStandardMaterial({ color: 0x181d21, roughness: 0.8 });
-    for(let i = 0; i < 42; i++) {
-        let block = new THREE.Mesh(blockGeo, blockMat);
-        block.position.x = (Math.random() - 0.5) * 140; block.position.z = (Math.random() - 0.5) * 140;
-        if(Math.abs(block.position.x) > 12 || Math.abs(block.position.z) > 12) scene.add(block);
-    }
-
-    // --- SPARK DO OBJETIVO 3D DA ROTA ---
-    let objGeo = new THREE.BoxGeometry(2.5, 2.5, 4);
-    let objMat = new THREE.MeshStandardMaterial({ color: 0x3f4b54, metalness: 0.4 });
-    targetObjectiveMesh = new THREE.Mesh(objGeo, objMat);
-    targetObjectiveMesh.position.set(-15, 1.25, -28); // Coordenadas do ponto crítico
-    scene.add(targetObjectiveMesh);
-
-    // Ajustar texto do HUD baseado na rota
-    adjustHUDObjectives();
-
-    // Construção de armas táticas em primeira pessoa
-    buildWeaponModel();
-    setupControls();
-
-    for (let i = 0; i < 6; i++) spawnZombie();
-    animateLoop();
-}
-
-function adjustHUDObjectives() {
-    let objText = document.getElementById('obj-text');
-    if(player.origin === 'policial') objText.innerText = "🎯 OBJETIVO: Localize os destroços da Viatura 404 nas ruas principais.";
-    if(player.origin === 'medico') objText.innerText = "🎯 OBJETIVO: Alcançar a cabine de comando central dos trilhos subterrâneos.";
-    if(player.origin === 'engenheiro') objText.innerText = "🎯 OBJETIVO: Encontrar a válvula de controle térmico do subsolo.";
-    if(player.origin === 'logistica') objText.innerText = "🎯 OBJETIVO: Acessar o terminal principal de triagem robotizada.";
-}
-
-function buildWeaponModel() {
-    weaponGroup = new THREE.Group();
-    if (player.origin === 'policial') {
-        let barrel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 0.38), new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8 }));
-        weaponGroup.add(barrel);
-        let grip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.18, 0.06), new THREE.MeshStandardMaterial({ color: 0x111827 }));
-        grip.position.set(0, -0.09, 0.08); grip.rotation.x = 0.2; weaponGroup.add(grip);
-        weaponGroup.position.set(0.28, -0.35, -0.6);
-    } else {
-        let handle = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.85, 8), new THREE.MeshStandardMaterial({ color: 0x3b2314 }));
-        handle.rotation.x = Math.PI / 2; weaponGroup.add(handle);
-        let blade = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.24, 0.28), new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.7 }));
-        blade.position.set(0, 0.05, -0.32); weaponGroup.add(blade);
-        weaponGroup.position.set(0.32, -0.35, -0.65);
-    }
-    camera.add(weaponGroup);
-}
-
-function spawnZombie() {
-    let zombieGroup = new THREE.Group();
-    let body = new THREE.Mesh(new THREE.BoxGeometry(1.4, 3.2, 1.4), new THREE.MeshStandardMaterial({ color: 0x1e2e1e }));
-    body.position.y = 1.6; zombieGroup.add(body);
-
-    let canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128;
-    let ctx = canvas.getContext('2d'); ctx.fillStyle = '#1e2e1e'; ctx.fillRect(0,0,128,128);
-    ctx.font = '72px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🧟', 64, 64);
+  <!-- PAINEL DA DIREITA: GRÁFICO E HISTÓRICO -->
+  <div class="w-full md:w-96 bg-white rounded-xl shadow-md p-4 flex flex-col h-full gap-4">
+    <h2 class="text-lg font-bold text-gray-700 border-b pb-2">📊 Resumo de Gastos</h2>
     
-    let head = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.2), new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(canvas) }));
-    head.position.y = 3.4; zombieGroup.add(head);
+    <!-- Gráfico -->
+    <div class="relative flex-1 max-h-[250px] flex justify-center items-center">
+      <canvas id="financeChart"></canvas>
+    </div>
 
-    let angle = Math.random() * Math.PI * 2; let distance = Math.random() * 35 + 20;
-    zombieGroup.position.x = camera.position.x + Math.cos(angle) * distance;
-    zombieGroup.position.z = camera.position.z + Math.sin(angle) * distance;
+    <!-- Tabela / Lista de Registros -->
+    <div class="flex-1 overflow-y-auto border-t pt-2">
+      <div class="flex justify-between items-center mb-2">
+        <span class="font-semibold text-sm text-gray-600">Histórico</span>
+        <button onclick="limparDados()" class="text-xs text-red-500 hover:underline">Limpar Tudo</button>
+      </div>
+      <ul id="listaGastos" class="space-y-2 text-sm"></ul>
+    </div>
+  </div>
 
-    scene.add(zombieGroup); zombies.push(zombieGroup);
-}
+  <!-- LÓGICA EM JAVASCRIPT -->
+  <script>
+    let transacoes = JSON.parse(localStorage.getItem('transacoes')) || [];
+    let myChart = null;
 
-function setupControls() {
-    const onKeyDown = (e) => {
-        switch (e.code) {
-            case 'KeyW': moveForward = true; break;
-            case 'KeyA': moveLeft = true; break;
-            case 'KeyS': moveBackward = true; break;
-            case 'KeyD': moveRight = true; break;
-        }
+    // Inicializa o gráfico e a lista ao carregar
+    window.onload = () => {
+      atualizarInterface();
     };
-    const onKeyUp = (e) => {
-        switch (e.code) {
-            case 'KeyW': moveForward = false; break;
-            case 'KeyA': moveLeft = false; break;
-            case 'KeyS': moveBackward = false; break;
-            case 'KeyD': moveRight = false; break;
-        }
-    };
-    document.addEventListener('keydown', onKeyDown); document.addEventListener('keyup', onKeyUp);
 
-    document.addEventListener('mousemove', (e) => {
-        if (document.pointerLockElement) {
-            yaw -= e.movementX * 0.0025; pitch -= e.movementY * 0.0025;
-            pitch = Math.max(-Math.PI / 2.3, Math.min(Math.PI / 2.3, pitch));
-            camera.rotation.set(0, 0, 0); camera.rotation.y = yaw; camera.rotation.x = pitch;
-        }
-    });
+    async function processarMensagem() {
+      const input = document.getElementById('userInput');
+      const apiKey = document.getElementById('apiKeyInput').value.trim();
+      const texto = input.value.trim();
 
-    document.addEventListener('mousedown', () => {
-        if (document.pointerLockElement && !isSwinging && !isObjectiveTriggered) {
-            isSwinging = true; swingTime = 0;
-            executeAction();
-        }
-    });
-}
-
-function executeAction() {
-    let raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-
-    // INTERCEPÇÃO DO OBJETIVO DA HISTÓRIA (TESTE DE PROXIMIDADE)
-    let checkObj = raycaster.intersectObject(targetObjectiveMesh);
-    if(checkObj.length > 0 && checkObj[0].distance < 4.2 && !isObjectiveTriggered) {
-        triggerCinemaDilemma();
+      if (!texto) return;
+      if (!apiKey) {
+        alert("Por favor, cole sua Gemini API Key no campo superior direito!");
         return;
-    }
+      }
 
-    // Combate contra a horda
-    let targets = [];
-    zombies.forEach(z => z.children.forEach(c => { c.userData.parentGroup = z; targets.push(c); }));
-    let intersects = raycaster.intersectObjects(targets);
+      // Adiciona mensagem do usuário na tela
+      adicionarMensagemChat(texto, 'user');
+      input.value = '';
 
-    if (intersects.length > 0) {
-        let distance = intersects[0].distance;
-        let hitZombie = intersects[0].object.userData.parentGroup;
+      // Prompt para forçar o Gemini a responder em JSON estrito
+      const prompt = `Analise a mensagem do usuário: "${texto}".
+Extraia as informações e retorne EXATAMENTE um JSON com este formato (sem formatação markdown ```json):
+{
+  "descricao": "breve descrição do gasto ou ganho",
+  "valor": numero_positivo,
+  "categoria": "uma categoria curta (ex: Alimentação, Transporte, Lazer, Casa, Renda, Outros)",
+  "tipo": "SAIDA" ou "ENTRADA",
+  "resposta": "uma frase curta amigável confirmando o registro"
+}`;
 
-        if (player.origin === 'policial') {
-            if (player.ammo > 0) {
-                player.ammo--; updateHUD();
-                scene.remove(hitZombie); zombies = zombies.filter(z => z !== hitZombie);
-                setTimeout(spawnZombie, 1000);
-            }
-        } else if (distance < 4.0) {
-            scene.remove(hitZombie); zombies = zombies.filter(z => z !== hitZombie);
-            setTimeout(spawnZombie, 1000);
-        }
-    }
-}
-
-// --- DESPARO DOS DILEMAS MORAIS ESTILO THE WALKING DEAD / THE LAST OF US ---
-function triggerCinemaDilemma() {
-    isObjectiveTriggered = true;
-    document.exitPointerLock(); // Libera o mouse para clicar nas escolhas
-
-    let box = document.getElementById('cinema-box');
-    let speaker = document.getElementById('cin-speaker');
-    let text = document.getElementById('cin-text');
-    let choicesDiv = document.getElementById('cin-choices');
-
-    box.style.display = 'block';
-    choicesDiv.innerHTML = "";
-
-    if(player.origin === 'policial') {
-        speaker.innerText = "SISTEMA: VIATURA 404";
-        text.innerHTML = `Você encontra a viatura esmagada. Preso no cinto de segurança está o Ramos... seu antigo parceiro de farda. Ele se transformou, emitindo um rosnado seco. O rádio do painel pisca com a última mensagem dele em loop: <i>"P_NAME... eu tranquei o armazém com as armas... Código é a data de aniversário da minha filha. Não volta pra me buscar, cara... Só continua vivo."</i>`;
-        
-        createCinemaButton("🔫 [MISERICÓRDIA] Gastar 1 Bala para dar um fim digno ao Ramos.", () => resolveDilemma('pol_good'));
-        createCinemaButton("🔑 [FRIEZA] Pegar a chave friamente do coldre e deixá-lo preso no escuro.", () => resolveDilemma('pol_bad'));
-    }
-    if(player.origin === 'medico') {
-        speaker.innerText = "SOBREVIVENTE: CLÍNICA SUBTERRÂNEA";
-        text.innerHTML = `Na cabine central, você encontra uma mãe desesperada segurando o filho de 8 anos sufocando devido aos esporos fúngicos no ar: <i>"Por favor, doutor! O ar tá contaminado! Me diz que você tem um filtro reserva na maleta... salva o meu filho, eu imploro!"</i> Você olha seu painel: se entregar o filtro, sua máscara vai queimar e seus pulmões serão asfixiados durante a fuga.`;
-        
-        createCinemaButton("🩹 [JURAMENTO] Entregar o filtro para salvar a criança, sacrificando seu próprio ar.", () => resolveDilemma('med_good'));
-        createCinemaButton("👤 [SOBREVIVÊNCIA] Ajustar sua própria máscara e mentir dizendo que não há remédios.", () => resolveDilemma('med_bad'));
-    }
-    if(player.origin === 'engenheiro') {
-        speaker.innerText = "USINA TÉRMICA: COMPORTAS";
-        text.innerHTML = `Através do visor de vidro da comporta, operários sobreviventes gritam em pânico devido à água fervente que está subindo na câmara. O painel eletrônico avisa: se você drenar o vapor para salvá-los, a tubulação lateral vai derreter e explodir permanentemente o armazém onde estão guardados seus suprimentos extras e munição pesada.`;
-        
-        createCinemaButton("⚙️ [HUMANIDADE] Inverter o vapor para salvar os operários, destruindo seus recursos.", () => resolveDilemma('eng_good'));
-        createCinemaButton("🪙 [PRAGMATISMO] Ignorar os operários e abrir caminho seguro até os suprimentos.", () => resolveDilemma('eng_bad'));
-    }
-    if(player.origin === 'logistica') {
-        speaker.innerText = "TERMINAL: LOGS CORPORATIVOS";
-        text.innerHTML = `Você hackeia o terminal de esteiras e encontra um diário digital escrito pelo gerente nos primeiros dias do surto: a diretoria ordenou trancar os portões com todos os funcionários dentro para 'proteger as cargas VIP do governo'. O alarme dispara! Os zumbis que se aproximam vestem os uniformes rasgados da sua antiga equipe de turno.`;
-        
-        createCinemaButton("🚨 [REVOLTA] Ligar os trituradores industriais nas esteiras centrais e correr para a van amarela.", () => resolveDilemma('log_action'));
-    }
-}
-
-function createCinemaButton(text, callback) {
-    let btn = document.createElement('button'); btn.className = 'cinema-btn';
-    btn.innerHTML = text; btn.onclick = callback;
-    document.getElementById('cin-choices').appendChild(btn);
-}
-
-function resolveDilemma(choiceId) {
-    document.getElementById('cinema-box').style.display = 'none';
-    
-    // Retoma o bloqueio de mouse para a gameplay FPS voltar
-    const container = document.getElementById('canvas-container');
-    container.requestPointerLock();
-
-    // Consequências mecânicas tridimensionais das escolhas de roteiro
-    if(choiceId === 'pol_good') { player.ammo = Math.max(0, player.ammo - 1); alert("Você dispara contra o Ramos. Seus ouvidos zumbem, mas sua alma está limpa. O portão lateral se abre."); }
-    if(choiceId === 'pol_bad') { player.speedModifier = 0.8; alert("Você puxa a chave friamente. O gemido do Ramos ecoa na sua mente. O peso da decisão reduz temporariamente sua agilidade física."); }
-    if(choiceId === 'med_good') { player.maxHp = 60; player.hp = 60; alert("Você entrega o filtro. A mãe chora agradecida. Ao pisar nos trilhos, o ar queima seus pulmões. Sua vida máxima caiu criticamente para 60%."); }
-    if(choiceId === 'med_bad') { alert("Você dá as costas. Os gritos amortecidos na cabine secam sua garganta. Sua biometria continua intacta para o combate."); }
-    if(choiceId === 'eng_good') { alert("O vapor é desviado. Os operários fogem pelas tubulações de serviço. A explosão destrói o galpão de armas. Você enfrentará a fuga final com braços vazios."); }
-    if(choiceId === 'eng_bad') { player.ammo += 10; alert("A usina fica em silêncio absoluto. Você arromba as caixas de metal e confisca uma quantidade massiva de Projéteis Táticos adicionais."); }
-    if(choiceId === 'log_action') { alert("As esteiras industriais começam a girar esmagando as barreiras físicas. Os portões da Doca Norte se rompem sob o barulho do metal!"); }
-
-    triggerExitBeacon();
-}
-
-function triggerExitBeacon() {
-    isExitActive = true;
-    document.getElementById('obj-text').innerHTML = "🎯 FUGIR: Siga em direção à COLUNA DE LUZ VERDE DE EXTRAÇÃO MILITAR!";
-    document.getElementById('obj-text').style.color = "#22c55e";
-
-    // Spawna a zona de vitória física no espaço 3D (Canto oposto do mapa)
-    let exitGeo = new THREE.CylinderGeometry(1.5, 1.5, 100, 16, 1, true);
-    let exitMat = new THREE.MeshBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.45 });
-    exitBeacon = new THREE.Mesh(exitGeo, exitMat);
-    exitBeacon.position.set(30, 50, 30);
-    scene.add(exitBeacon);
-}
-
-function animateLoop() {
-    requestAnimationFrame(animateLoop);
-    let time = performance.now(); let delta = (time - prevTime) / 1000;
-
-    if (document.pointerLockElement && !document.getElementById('cinema-box').style.display === 'block') {
-        velocity.x -= velocity.x * 10.0 * delta; velocity.z -= velocity.z * 10.0 * delta;
-        direction.z = Number(moveForward) - Number(moveBackward);
-        direction.x = Number(moveRight) - Number(moveLeft);
-        direction.normalize();
-
-        // Aplica o modificador de velocidade decorrente da decisão moral do Policial
-        let currentSpeed = playerSpeed * player.speedModifier;
-
-        if (moveForward || moveBackward) velocity.z -= direction.z * currentSpeed * delta;
-        if (moveLeft || moveRight) velocity.x -= direction.x * currentSpeed * delta;
-
-        camera.translateX(-velocity.x * delta); camera.translateZ(velocity.z * delta);
-        camera.position.y = 2;
-
-        // Animação de Swing
-        if (isSwinging) {
-            swingTime += delta * 8;
-            if(player.origin==='policial') weaponGroup.position.z = -0.6 + Math.sin(swingTime)*0.12;
-            else { weaponGroup.rotation.y = -Math.sin(swingTime)*1.3; weaponGroup.position.z = -0.65 + Math.sin(swingTime)*0.25; }
-            if (swingTime >= Math.PI) { isSwinging = false; weaponGroup.rotation.set(0,0,0); weaponGroup.position.set(player.origin==='policial'?0.28:0.32, -0.35, player.origin==='policial'?-0.6:-0.65); }
-        }
-
-        // Checagem do Gatilho de Vitória Tridimensional
-        if (isExitActive && exitBeacon) {
-            let pPos = new THREE.Vector2(camera.position.x, camera.position.z);
-            let ePos = new THREE.Vector2(30, 30);
-            if(pPos.distanceTo(ePos) < 3.2) {
-                alert(`🏁 CAPÍTULO 2 CONCLUÍDO!\nSuas escolhas como ${player.name} definiram quem você é em meio ao fim do mundo. Você conseguiu romper o perímetro e alcançou a estrada federal. Próxima Parada: Capítulo 3 - A Zona de Extração Final.`);
-                location.reload();
-            }
-        }
-
-        // IA dos Infectados de Atlanta
-        zombies.forEach(zombie => {
-            zombie.lookAt(camera.position.x, zombie.position.y, camera.position.z);
-            let targetDir = new THREE.Vector3();
-            targetDir.subVectors(camera.position, zombie.position).normalize();
-            
-            // Ficam furiosos e ganham velocidade após o gatilho narrativo estourar
-            zombie.position.addScaledVector(targetDir, (isObjectiveTriggered ? 6.2 : 3.8) * delta);
-
-            if(zombie.position.distanceTo(camera.position) < 1.9) {
-                player.hp = Math.max(0, player.hp - (26 * delta)); updateHUD();
-                triggerHurtScreen();
-            }
+      try {
+        const response = await fetch(`[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$){apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }]
+          })
         });
+
+        const data = await response.json();
+        const rawText = data.candidates[0].content.parts[0].text.trim();
+        
+        // Trata a resposta limpando formatações markdown se existirem
+        const cleanJsonText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const resultado = JSON.parse(cleanJsonText);
+
+        // Salva a transação
+        transacoes.push(resultado);
+        localStorage.setItem('transacoes', JSON.stringify(transacoes));
+
+        // Responde no chat e atualiza os gráficos
+        adicionarMensagemChat(resultado.resposta, 'bot');
+        atualizarInterface();
+
+      } catch (error) {
+        console.error(error);
+        adicionarMensagemChat("Ops! Não consegui entender essa transação ou a API Key está incorreta.", 'bot');
+      }
     }
-    prevTime = time;
-    if(renderer && scene && camera) renderer.render(scene, camera);
-}
 
-function updateHUD() {
-    document.getElementById('hp-text').innerText = `${Math.round((player.hp / player.maxHp) * 100)}%`;
-    if(player.origin === 'policial') document.getElementById('ammo-text').innerText = `${player.ammo} PROJÉTEIS`;
-    else document.getElementById('ammo-text').innerText = "Machado Tático";
+    function adicionarMensagemChat(texto, autor) {
+      const chatBox = document.getElementById('chatBox');
+      const div = document.createElement('div');
+      div.className = autor === 'user' 
+        ? "bg-indigo-600 text-white p-3 rounded-lg max-w-[80%] ml-auto text-right"
+        : "bg-gray-100 p-3 rounded-lg max-w-[80%] text-gray-800";
+      div.innerHTML = texto;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
 
-    if(player.hp <= 0) { alert("🚨 FIM DA LINHA: Sinais vitais zerados. Seu nome virou apenas estatística em Atlanta."); location.reload(); }
-}
+    function atualizarInterface() {
+      // Atualizar Lista
+      const lista = document.getElementById('listaGastos');
+      lista.innerHTML = '';
+      
+      const categoriasValores = {};
 
-function triggerHurtScreen() {
-    const ui = document.getElementById("room-engine");
-    if(ui) { ui.classList.add("hurt-3d"); setTimeout(() => ui.classList.remove("hurt-3d"), 200); }
-}
+      transacoes.forEach(t => {
+        // Popula Lista
+        const li = document.createElement('li');
+        li.className = "flex justify-between items-center bg-gray-50 p-2 rounded border";
+        const corTexto = t.tipo === 'ENTRADA' ? 'text-green-600' : 'text-red-600';
+        const sinal = t.tipo === 'ENTRADA' ? '+' : '-';
+        li.innerHTML = `<span><b>${t.descricao}</b> <small class="text-gray-400">(${t.categoria})</small></span>
+                        <span class="${corTexto} font-bold">${sinal} R$ ${t.valor.toFixed(2)}</span>`;
+        lista.appendChild(li);
 
-window.addEventListener('resize', () => {
-    if(camera && renderer) { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
-});
+        // Agrupa por Categoria para o Gráfico (apenas saídas)
+        if (t.tipo === 'SAIDA') {
+          categoriasValores[t.categoria] = (categoriasValores[t.categoria] || 0) + t.valor;
+        }
+      });
 
-updateHUD();
-</script>
+      // Atualizar Gráfico
+      renderizarGrafico(categoriasValores);
+    }
+
+    function renderizarGrafico(dados) {
+      const ctx = document.getElementById('financeChart').getContext('2d');
+      const labels = Object.keys(dados);
+      const valores = Object.values(dados);
+
+      if (myChart) myChart.destroy();
+
+      myChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: labels.length ? labels : ['Sem dados'],
+          datasets: [{
+            data: valores.length ? valores : [1],
+            backgroundColor: [
+              '#4F46E5', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6B7280'
+            ]
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: 'bottom' }
+          }
+        }
+      });
+    }
+
+    function limparDados() {
+      if (confirm("Deseja apagar todo o histórico de gastos?")) {
+        transacoes = [];
+        localStorage.removeItem('transacoes');
+        atualizarInterface();
+      }
+    }
+  </script>
 </body>
 </html>
